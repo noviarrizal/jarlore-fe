@@ -1,0 +1,237 @@
+@import "tailwindcss";
+
+/*
+ * Jarlore design tokens. Source of truth: docs/design/DESIGN_FOUNDATIONS.md
+ * Components use the semantic Tailwind names below (bg-paper, text-ink-2, border-rule, ...).
+ * Never hardcode hex values, radii or shadows in components.
+ */
+
+:root {
+  /* Neutrals */
+  --paper: #f2f3ee;
+  --sheet: #fbfbf8;
+  --well: #e6e8e1;
+  --rule: #d5d8cf;
+  --rule-strong: #b5baae;
+  --ink: #17302a;
+  --ink-2: #4a5b54;
+  --ink-3: #5c6a63;
+
+  /* Action (also the F2 / bottle stage colour) */
+  --action: #1f5c4c;
+  --action-hover: #174a3d;
+  --on-action: #ffffff;
+  --bottle-wash: #ddebe4;
+
+  /* F1 / jar stage + lineage */
+  --tea: #b26c0c;
+  --tea-ink: #87500a;
+  --tea-wash: #f6e9cf;
+
+  /* "Changed" highlight. One meaning only. */
+  --marker: #f5db7a;
+
+  /* Status */
+  --success: #2c7149;
+  --success-wash: #ddefe3;
+  --warning: #8c6200;
+  --warning-wash: #fbefc9;
+  --danger: #a93a2e;
+  --danger-wash: #f7e0dc;
+  --info: #2e6380;
+  --info-wash: #e0ecf2;
+
+  /* Shape */
+  --radius-tag: 4px;
+  --radius-control: 8px;
+  --radius-panel: 12px;
+  --radius-sheet: 20px;
+
+  /* Elevation: floating layers only */
+  --shadow-float: 0 1px 2px rgb(23 48 42 / 0.08), 0 12px 32px -8px rgb(23 48 42 / 0.22);
+
+  /* Layout */
+  --sidebar-w: 232px;
+  --bottom-nav-h: 64px;
+
+  --focus-ring: 0 0 0 2px var(--paper), 0 0 0 4px var(--action);
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-sheet: var(--sheet);
+  --color-well: var(--well);
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-action: var(--action);
+  --color-action-hover: var(--action-hover);
+  --color-on-action: var(--on-action);
+  --color-bottle-wash: var(--bottle-wash);
+  --color-tea: var(--tea);
+  --color-tea-ink: var(--tea-ink);
+  --color-tea-wash: var(--tea-wash);
+  --color-marker: var(--marker);
+  --color-success: var(--success);
+  --color-success-wash: var(--success-wash);
+  --color-warning: var(--warning);
+  --color-warning-wash: var(--warning-wash);
+  --color-danger: var(--danger);
+  --color-danger-wash: var(--danger-wash);
+  --color-info: var(--info);
+  --color-info-wash: var(--info-wash);
+
+  --radius-tag: var(--radius-tag);
+  --radius-control: var(--radius-control);
+  --radius-panel: var(--radius-panel);
+  --radius-sheet: var(--radius-sheet);
+
+  --shadow-float: var(--shadow-float);
+
+  --font-sans: var(--font-recursive), ui-sans-serif, system-ui, sans-serif;
+
+  /* Type scale (size / line-height / weight) */
+  --text-display: 2rem;
+  --text-display--line-height: 2.25rem;
+  --text-display--font-weight: 760;
+  --text-display--letter-spacing: -0.02em;
+  --text-display-lg: 2.5rem;
+  --text-display-lg--line-height: 2.75rem;
+  --text-display-lg--font-weight: 760;
+  --text-display-lg--letter-spacing: -0.02em;
+  --text-title-lg: 1.625rem;
+  --text-title-lg--line-height: 2rem;
+  --text-title-lg--font-weight: 700;
+  --text-title-lg--letter-spacing: -0.01em;
+  --text-title: 1.375rem;
+  --text-title--line-height: 1.75rem;
+  --text-title--font-weight: 700;
+  --text-title--letter-spacing: -0.01em;
+  --text-section: 1.0625rem;
+  --text-section--line-height: 1.5rem;
+  --text-section--font-weight: 650;
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.375rem;
+  --text-body-lg: 1rem;
+  --text-body-lg--line-height: 1.5rem;
+  --text-small: 0.8125rem;
+  --text-small--line-height: 1.125rem;
+  --text-label: 0.8125rem;
+  --text-label--line-height: 1rem;
+  --text-label--font-weight: 600;
+
+  --breakpoint-wide: 75rem;
+
+  /* Layout */
+  --container-content: 44rem;
+  --container-list: 56rem;
+  --container-wide: 72rem;
+  --container-page: 90rem;
+  --spacing-sidebar: 232px;
+  --spacing-bottom-nav: 64px;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    font-variation-settings: "CASL" 0, "MONO" 0;
+  }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+    font-weight: 420;
+  }
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+  ::selection {
+    background: var(--marker);
+  }
+}
+
+@layer components {
+  /* Measured values: mono axis + tabular figures. Numbers only, never labels. */
+  .num {
+    font-variation-settings: "MONO" 1, "CASL" 0;
+    font-variant-numeric: tabular-nums;
+    font-weight: 520;
+    white-space: nowrap; /* never split "8 g" or "3.8 L" across lines */
+  }
+  /* Batch codes like KB-014 */
+  .code {
+    font-variation-settings: "MONO" 1, "CASL" 0;
+    font-weight: 620;
+    letter-spacing: 0;
+  }
+  /* Words the user wrote: notes, hypotheses, taste notes */
+  .note {
+    font-variation-settings: "CASL" 1, "MONO" 0, "slnt" -4;
+    font-weight: 430;
+  }
+  /* The "changed" highlight. Only for diffs. */
+  .mark-changed {
+    background: linear-gradient(transparent 12%, var(--marker) 12%, var(--marker) 88%, transparent 88%);
+    border-radius: var(--radius-tag);
+    padding-inline: 0.2em;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+  .mark-sweep {
+    animation: mark-sweep 900ms ease-out 1;
+  }
+}
+
+@keyframes mark-sweep {
+  from {
+    background-color: var(--marker);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+dialog.sheet[open] {
+  animation: sheet-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+dialog.sheet::backdrop {
+  background: rgb(23 48 42 / 0.36);
+  animation: fade-in 180ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after,
+  dialog.sheet[open],
+  dialog.sheet::backdrop {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
