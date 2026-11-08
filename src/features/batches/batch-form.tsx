@@ -2,12 +2,17 @@
 
 import { Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState, useTransition } from "react";
-import type { CompareItemRef, CreateBatchRequest, DiffRow, Ingredient } from "@/lib/api/types";
+import type { CompareItemRef, CreateBatchRequest, DiffRow, IngredientInput } from "@/lib/api/types";
 import { Button, IconButton } from "@/components/ui/button";
 import { Changed } from "@/components/ui/changed";
 import { Field, Input, Textarea } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
 import { previewDiff, startBatch } from "./actions";
+
+type Row = IngredientInput & { key: string };
+
+/** The diff row key jarlore-be uses for an ingredient (role + normalised name), to place the marker. */
+const ingredientKey = (i: IngredientInput) => `ingredients.${i.role}.${i.name.trim().toLowerCase().split(/\s+/).join("_")}`;
 
 /**
  * One form for "Brew again" (with a base batch → live diff) and "New batch" (no base).
@@ -23,7 +28,16 @@ export function BatchForm({
   versionNote?: string;
 }) {
   const toast = useToast();
-  const [draft, setDraft] = useState<CreateBatchRequest>(initial);
+  // Ingredient rows carry a client-only key; the request body never includes it.
+  const [form, setForm] = useState<Omit<CreateBatchRequest, "ingredients"> & { ingredients: Row[] }>(() => ({
+    ...initial,
+    ingredients: initial.ingredients.map((i, n) => ({ ...i, key: `i${n}` })),
+  }));
+  const draft = useMemo<CreateBatchRequest>(
+    () => ({ ...form, ingredients: form.ingredients.map(({ key: _key, ...i }) => (void _key, i)) }),
+    [form],
+  );
+  const setDraft = setForm;
   const [diff, setDiff] = useState<{ rows: DiffRow[]; changeCount: number } | null>(null);
   const [startedEarlier, setStartedEarlier] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -42,8 +56,8 @@ export function BatchForm({
   const changed = useMemo(() => new Set(diff?.rows.filter((r) => r.differs).map((r) => r.key)), [diff]);
   const changedRows = diff?.rows.filter((r) => r.differs) ?? [];
 
-  function setIngredient(id: string, patch: Partial<Ingredient>) {
-    setDraft((d) => ({ ...d, ingredients: d.ingredients.map((i) => (i.id === id ? { ...i, ...patch } : i)) }));
+  function setIngredient(key: string, patch: Partial<IngredientInput>) {
+    setDraft((d) => ({ ...d, ingredients: d.ingredients.map((i) => (i.key === key ? { ...i, ...patch } : i)) }));
   }
 
   function submit() {
@@ -114,21 +128,21 @@ export function BatchForm({
       <fieldset>
         <legend className="text-section">Ingredients</legend>
         <ul className="mt-2 divide-y divide-rule border-y border-rule">
-          {draft.ingredients.map((i) => {
-            const isChanged = changed.has(`ingredient.${i.role}:${i.name}`);
+          {form.ingredients.map((i) => {
+            const isChanged = changed.has(ingredientKey(i));
             return (
-              <li key={i.id} className="flex items-center gap-3 py-2">
-                <label htmlFor={`ing-${i.id}`} className="min-w-0 flex-1 break-words">
+              <li key={i.key} className="flex items-center gap-3 py-2">
+                <label htmlFor={`ing-${i.key}`} className="min-w-0 flex-1 break-words">
                   <Changed when={isChanged}>{i.name}</Changed>
                 </label>
                 <div className="flex h-11 w-32 shrink-0 items-center rounded-control border border-rule bg-sheet focus-within:border-action">
                   <input
-                    id={`ing-${i.id}`}
+                    id={`ing-${i.key}`}
                     inputMode="decimal"
                     value={String(i.amount)}
                     onChange={(e) => {
                       const n = Number(e.target.value.replace(",", "."));
-                      if (!Number.isNaN(n)) setIngredient(i.id, { amount: n });
+                      if (!Number.isNaN(n)) setIngredient(i.key, { amount: n });
                     }}
                     className="num h-full w-full min-w-0 bg-transparent px-3 text-right text-body-lg outline-none focus-visible:shadow-none"
                   />
@@ -136,7 +150,7 @@ export function BatchForm({
                 </div>
                 <IconButton
                   label={`Remove ${i.name}`}
-                  onClick={() => setDraft((d) => ({ ...d, ingredients: d.ingredients.filter((x) => x.id !== i.id) }))}
+                  onClick={() => setDraft((d) => ({ ...d, ingredients: d.ingredients.filter((x) => x.key !== i.key) }))}
                 >
                   <Trash2 className="size-4" />
                 </IconButton>
@@ -209,7 +223,7 @@ export function BatchForm({
   );
 }
 
-function AddIngredient({ onAdd }: { onAdd: (i: Ingredient) => void }) {
+function AddIngredient({ onAdd }: { onAdd: (i: Row) => void }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
@@ -232,7 +246,7 @@ function AddIngredient({ onAdd }: { onAdd: (i: Ingredient) => void }) {
           variant="secondary"
           disabled={!name.trim() || Number.isNaN(Number(amount)) || amount === ""}
           onClick={() => {
-            onAdd({ id: `new-${Date.now()}`, name: name.trim(), role: "other", amount: Number(amount), unit });
+            onAdd({ key: `new-${Date.now()}`, name: name.trim(), role: "other", amount: Number(amount), unit });
             setName("");
             setAmount("");
             setOpen(false);

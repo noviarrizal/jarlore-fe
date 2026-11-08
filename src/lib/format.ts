@@ -76,12 +76,11 @@ export const reminderVerb: Record<ReminderKind, string> = {
 const measurementLabel: Record<string, string> = { ph: "pH", temp: "Temp", brix: "Brix", sg: "Gravity" };
 
 export function formatMeasurement(m: Measurement): { label: string; value: string; unit: string } {
+  const label = measurementLabel[m.definitionKey] ?? m.definitionKey.replace(/_/g, " ");
+  if (typeof m.value === "boolean") return { label, value: m.value ? "Yes" : "No", unit: "" };
+  if (typeof m.value === "string") return { label, value: m.value, unit: "" };
   const decimals = m.definitionKey === "sg" ? 3 : m.definitionKey === "ph" || m.definitionKey === "brix" ? 1 : m.value % 1 ? 1 : 0;
-  return {
-    label: measurementLabel[m.definitionKey] ?? m.definitionKey,
-    value: m.value.toFixed(decimals),
-    unit: m.definitionKey === "ph" ? "" : m.unit,
-  };
+  return { label, value: m.value.toFixed(decimals), unit: m.definitionKey === "ph" ? "" : m.unit };
 }
 
 export function formatAmount(amount: number | null, unit: string | null): string {

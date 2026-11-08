@@ -11,7 +11,7 @@
 
 No component library, no state-management library, no form library. Each would earn its place only when a real problem appears.
 
-The backend contract lives in **`jarlore-be/docs/api/openapi.yaml`**. `src/lib/api/types.ts` mirrors it by hand; when they disagree, the spec wins.
+The backend contract lives in **`jarlore-be/api/openapi.yaml`**. `pnpm gen:api` generates `src/lib/api/schema.d.ts` from it with openapi-typescript (dev dependency); `src/lib/api/types.ts` only gives the generated shapes short names.
 
 ## Folder structure
 
@@ -31,19 +31,20 @@ src/
     batches/ compare/ today/       feature UI + server actions
   lib/
     api/contract.ts                JarloreApi interface (one method per endpoint)
-    api/types.ts                   DTOs from the OpenAPI spec
-    api/http.ts                    fetch wrapper + ApiError (problem+json)
-    api/index.ts                   `api` singleton (server-only), currently the mock
+    api/schema.d.ts                generated from the OpenAPI spec (never edit)
+    api/types.ts                   short names for the generated types
+    api/http.ts                    fetch wrapper + ApiError (problem+json), server-only
+    api/http-api.ts                JarloreApi over jarlore-be, with the session token
+    api/index.ts                   `api` singleton (server-only)
+    auth/session.ts                session cookie, dev sign-in switch
     format.ts                      dates, units, labels (display only)
-  mocks/
-    fixtures.ts, api.ts, diff.ts   in-memory stand-in for jarlore-be
+  proxy.ts                         no session cookie → /login (optimistic check only)
 ```
 
 ## Data flow
 
 ```
-Server Component page ──await──▶ api.* (lib/api, server-only) ──▶ mocks/api.ts   (today)
-                                                              └─▶ http-api.ts    (when jarlore-be exists)
+Server Component page ──await──▶ api.* (lib/api, server-only) ──▶ http-api.ts ──Bearer──▶ jarlore-be /v1
 Client Component ──calls──▶ server action (features/*/actions.ts) ──▶ api.* ──▶ result {ok|error}
                      └──── router.refresh() on success to re-render server data
 ```
@@ -80,26 +81,26 @@ Client Component ──calls──▶ server action (features/*/actions.ts) ─�
 | `/compare` | PPR | `getEntitlements`, `compare` |
 | `/me` | PPR | `getMe`, `getEntitlements`, `listMeasurementDefinitions` |
 
-The mock calls `connection()` on every method, so it renders at request time like the real authenticated API will.
+Every API call reads the session cookie, so pages render at request time; `api.now()` calls `connection()` first for the same reason.
 
-## Authentication (planned, not built)
+## Authentication
 
-- **Flow.** Supabase Auth (magic link/OTP and Google), per jarlore-be ADR-003 (Proposed).
-  - The frontend holds the session in cookies.
-  - `src/proxy.ts` (Next 16 replaces middleware) refreshes the session and redirects unauthenticated users from `(app)` to `/login`.
-  - The server reads the access token and sends `Authorization: Bearer` to jarlore-be.
+- **Built:** the access token is kept in the httpOnly `jarlore_session` cookie, read on the server and sent as `Authorization: Bearer` to jarlore-be. `src/proxy.ts` sends visitors without the cookie to `/login`. A 401 from the API (expired token) redirects to `/login?expired=1`; server actions rethrow that redirect instead of reporting an error.
+- **Development sign-in:** `/login` asks jarlore-be's local issuer (`cmd/devauth`, `JARLORE_DEV_AUTH_URL`) for a token for the demo brewer or a second brewer (to see isolation). It is disabled in production builds.
+- **Not built (P0):** Supabase Auth sign-in (email OTP / magic link, Google), per jarlore-be ADR-003. It plugs into `session.ts`: store the Supabase access token in the same cookie and refresh it before expiry.
 - **Authorization.** All authorization happens in the API, never in the UI.
 - **The UI never decides anything from a cached claim** except navigation (e.g. hiding Pro hints).
 
-## Switching from mock to the real API
+## Environment
 
-1. Implement `src/lib/api/http-api.ts`: `JarloreApi` on top of `request()`, passing the session token.
-2. In `src/lib/api/index.ts`, choose `httpApi` when `JARLORE_API_URL` is set.
-3. Delete `src/mocks` once every screen works against the API. No screen imports the mocks directly.
+| Variable | Use |
+|---|---|
+| `JARLORE_API_URL` | jarlore-be base URL, server-side only |
+| `JARLORE_DEV_AUTH_URL` | Development sign-in issuer; ignored in production builds |
 
-## Contract gaps found while building (frontend impact)
+## Contract gaps (resolved)
 
-These were also added to `jarlore-be/docs/architecture/ARCHITECTURE_DECISIONS.md`.
+All five gaps below were resolved in the Go API (2026-11-07): fermentation types carry blank-batch defaults, `GET /v1/recipe-versions/{id}` exists, previews return `willCreateVersion`/`nextVersionNo`, custom batches keep stage `f1`, and reminders filter by `batchId`. The original notes:
 
 | Gap | Current frontend workaround | Proposed contract change |
 |---|---|---|
@@ -112,5 +113,6 @@ These were also added to `jarlore-be/docs/architecture/ARCHITECTURE_DECISIONS.md
 ## Testing
 
 - **Current gates:** `pnpm lint`, `npx tsc --noEmit`, `pnpm build`.
-- **Visual review:** Playwright (with the installed Chrome) captures 390/768/1440 px full-page screenshots and runs the core flows (quick log, select → compare, brew again → start). The script lives outside the repo; adding it as `e2e/` with `@playwright/test` is a recommended next step.
+- **End to end:** a Playwright script (outside the repo) runs the full acceptance scenario against the real stack (PostgreSQL → Go API → this app): sign in, create an F1, log pH and temperature, bottle four experiments, burp all, rate each bottle, mark the best, save it as a bottle recipe, finish and brew again, bottle a new experiment from the recipe with a changed form and amount (live diff, new version), rate it, compare, check history, and confirm a second account sees a 404. Moving it into `e2e/` with `@playwright/test` is a recommended next step.
+- **Contract:** response shapes are validated against the spec by jarlore-be's contract tests; this app's types are generated from the same spec.
 - **No unit tests yet.** The first worthwhile ones are `features/compare/marking.ts` and `lib/format.ts`, since they're pure functions. A test runner (Vitest) wasn't added to avoid an unused dependency.

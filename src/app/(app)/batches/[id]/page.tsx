@@ -1,4 +1,4 @@
-import { GitCompareArrows, RotateCcw } from "lucide-react";
+import { GitCompareArrows, RotateCcw, Split } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -12,6 +12,8 @@ import { Score } from "@/components/ui/rating";
 import { StageTag } from "@/components/ui/stage-tag";
 import { Skeleton, SkeletonRows } from "@/components/ui/states";
 import { BottleLineage } from "@/features/batches/bottle-lineage";
+import { FinishButton } from "@/features/batches/finish-sheet";
+import { SaveRecipeButton } from "@/features/batches/save-recipe-sheet";
 import { RatingSummary } from "@/features/batches/rating-summary";
 import { api, isNotFound } from "@/lib/api";
 import type { Batch } from "@/lib/api/types";
@@ -35,18 +37,23 @@ async function BatchDetail({ params }: { params: PageProps<"/batches/[id]">["par
     if (isNotFound(e)) notFound();
     throw e;
   });
-  const [logs, types, now, reference, parent] = await Promise.all([
+  const [logs, types, now, reference, parent, recipes] = await Promise.all([
     api.listBatchLogs(id),
     api.listFermentationTypes(),
     api.now(),
     api.getBatchReference(id),
     batch.parentBatchId ? api.getBatch(batch.parentBatchId).catch(() => null) : Promise.resolve(null),
+    batch.status === "finished" ? api.listRecipes("batch") : Promise.resolve(null),
   ]);
   const bottleDiff =
     batch.bottles.length > 1 ? await api.compare(batch.bottles.map((b) => ({ type: "bottle" as const, id: b.id }))) : null;
 
   const type = types.find((t) => t.id === batch.fermentationTypeId);
   const active = batch.status === "active";
+  const canBottle = active && type?.stages.some((s) => s.key === "f2") && (batch.stage === "f1" || batch.stage === "f2");
+  const sameTypeRecipes = (recipes?.data ?? [])
+    .filter((r) => r.fermentationTypeId === batch.fermentationTypeId && r.archivedAt === null)
+    .map((r) => ({ id: r.id, name: r.name, versionCount: r.versionCount }));
   const compareWith = parent ?? reference;
   const logTarget = {
     id: batch.id,
@@ -80,11 +87,24 @@ async function BatchDetail({ params }: { params: PageProps<"/batches/[id]">["par
         }
         actions={
           active ? (
-            <LogButton target={logTarget} variant="primary" />
+            <>
+              <LogButton target={logTarget} variant="primary" />
+              {canBottle && (
+                <ButtonLink href={`/batches/${batch.id}/bottle`} icon={<Split className="size-4" aria-hidden />}>
+                  {batch.bottles.length ? "Add bottles" : "Bottle it"}
+                </ButtonLink>
+              )}
+              <FinishButton target={{ type: "batch", id: batch.id, title: batch.code }} />
+            </>
           ) : (
-            <ButtonLink href={`/batches/${batch.id}/brew-again`} variant="primary" icon={<RotateCcw className="size-4" aria-hidden />}>
-              Brew again
-            </ButtonLink>
+            <>
+              <ButtonLink href={`/batches/${batch.id}/brew-again`} variant="primary" icon={<RotateCcw className="size-4" aria-hidden />}>
+                Brew again
+              </ButtonLink>
+              {batch.status === "finished" && (
+                <SaveRecipeButton target={{ type: "batch", id: batch.id, title: batch.code }} defaultName={batch.name} recipes={sameTypeRecipes} />
+              )}
+            </>
           )
         }
       />

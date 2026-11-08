@@ -1,227 +1,66 @@
 /**
  * Jarlore API contract types (v1).
- * Mirrors jarlore-be/docs/api/openapi.yaml. If they disagree, the OpenAPI spec wins:
- * update this file to match the spec. Never change the spec from here.
+ * Generated from jarlore-be/api/openapi.yaml into ./schema.d.ts (`pnpm gen:api`).
+ * Never edit schema.d.ts by hand; this file only gives the generated shapes short names.
  */
+import type { components } from "./schema";
+
+type S = components["schemas"];
 
 export type ID = string;
 export type ISODateTime = string;
 
-export type FermentationTypeId = "kombucha" | "water_kefir" | "custom";
+export type FermentationTypeId = S["FermentationTypeId"];
+export type FermentationType = S["FermentationType"];
+export type BatchStatus = S["BatchStatus"];
+export type BatchStage = S["BatchStage"];
+export type BottleStatus = S["BottleStatus"];
+export type LogKind = S["LogKind"];
+export type ReminderKind = S["ReminderKind"];
+export type RecipeScope = S["RecipeScope"];
 
-export interface FermentationType {
-  id: FermentationTypeId;
-  name: string;
-  stages: { key: "f1" | "f2" | "ferment"; label: string; typicalDays: [number, number] }[];
-}
-
-export type BatchStatus = "active" | "finished" | "discarded";
-export type BatchStage = "f1" | "f2" | "done";
-
-export interface Ingredient {
-  id: ID;
-  name: string;
-  role: "water" | "tea" | "sugar" | "starter" | "flavor" | "other";
-  amount: number;
-  unit: string;
-}
-
-export interface Addition {
-  name: string;
-  form: "juice" | "puree" | "chunks" | "whole" | "syrup" | "dried" | "other";
-  amount: number | null;
-  unit: string | null;
-}
-
-export interface Measurement {
-  definitionKey: string;
-  value: number;
-  unit: string;
-  method: string | null;
-}
-
-export interface MeasurementDefinition {
-  id: ID;
-  key: string;
-  label: string;
-  unit: string;
-  decimals: number;
-  min: number | null;
-  max: number | null;
-  isSystem: boolean;
-}
-
+export type IngredientInput = S["IngredientInput"];
+export type Ingredient = S["Ingredient"];
+export type Addition = S["Addition"];
+export type Measurement = S["Measurement"];
+export type MeasurementDefinition = S["MeasurementDefinition"];
+export type Rating = S["Rating"];
 export type Score = 1 | 2 | 3 | 4 | 5;
+export type BatchParams = S["BatchParams"];
+export type RecipeVersionRef = S["RecipeVersionRef"];
 
-export interface Rating {
-  overall: Score;
-  fizz: Score | null;
-  sweetTart: Score | null;
-  flavor: Score | null;
-  offNotes: string[];
-  wouldRepeat: boolean | null;
-  note: string | null;
-}
+export type Bottle = S["Bottle"];
+export type BottleInput = S["BottleInput"];
+export type BottleSpec = S["BottleSpec"];
+export type LogEntry = S["LogEntry"];
+export type Reminder = S["Reminder"];
+export type Batch = S["Batch"];
+export type BatchSummary = S["BatchSummary"];
+export type RecipeVersion = S["RecipeVersion"];
+export type RecipeVersionDetail = S["RecipeVersionDetail"];
+export type Recipe = S["Recipe"];
 
-export interface RecipeVersionRef {
-  recipeId: ID;
-  recipeName: string;
-  versionId: ID;
-  versionNo: number;
-}
+export type DiffRow = S["DiffRow"];
+export type DiffValue = DiffRow["values"][number];
+export type DiffResult = S["DiffResult"];
+export type CompareItemRef = S["CompareItemRef"];
+export type CompareResult = S["CompareResult"];
+export type TodayView = S["TodayResponse"];
+export type Entitlements = S["Entitlements"];
+export type Problem = S["Problem"];
+export type Me = S["Me"];
 
-export type BottleStatus = "conditioning" | "chilled" | "finished" | "discarded";
-
-export interface Bottle {
-  id: ID;
-  batchId: ID;
-  label: string;
-  flavorName: string;
-  volumeMl: number;
-  additions: Addition[];
-  primingSugarG: number | null;
-  headspaceCm: number | null;
-  status: BottleStatus;
-  startedAt: ISODateTime;
-  finishedAt: ISODateTime | null;
-  lastMeasurements: Measurement[];
-  rating: Rating | null;
-}
-
-export type LogKind = "note" | "taste" | "burp" | "measure" | "stage_change" | "feed" | "issue";
-
-export interface LogEntry {
-  id: ID;
-  batchId: ID;
-  bottleId: ID | null;
-  kind: LogKind;
-  occurredAt: ISODateTime;
-  note: string | null;
-  measurements: Measurement[];
-  createdAt: ISODateTime;
-}
-
-export type ReminderKind = "taste_check" | "bottle" | "burp" | "chill" | "custom";
-
-export interface Reminder {
-  id: ID;
-  batchId: ID;
-  bottleId: ID | null;
-  kind: ReminderKind;
-  dueAt: ISODateTime;
-  status: "pending" | "done" | "snoozed" | "dismissed";
-  label: string;
-}
-
-export interface BatchParams {
-  targetF1Days?: number;
-  roomTempC?: number;
-  starterSource?: string;
-}
-
-export interface Batch {
-  id: ID;
-  code: string;
-  name: string;
-  fermentationTypeId: FermentationTypeId;
-  status: BatchStatus;
-  stage: BatchStage;
-  archivedAt: ISODateTime | null;
-  startedAt: ISODateTime;
-  finishedAt: ISODateTime | null;
-  volumeMl: number;
-  vessel: string | null;
-  recipeVersion: RecipeVersionRef | null;
-  ingredients: Ingredient[];
-  params: BatchParams;
-  parentBatchId: ID | null;
-  hypothesis: string | null;
-  isReference: boolean;
-  rating: Rating | null;
-  bottles: Bottle[];
-  lastLog: LogEntry | null;
-  nextReminder: Reminder | null;
-}
-
-export type BatchSummary = Omit<Batch, "ingredients" | "params" | "bottles"> & {
-  bottleCount: number;
-};
-
-export interface RecipeVersion {
-  id: ID;
-  recipeId: ID;
-  versionNo: number;
-  parentVersionId: ID | null;
-  changeNote: string | null;
-  sourceBatchId: ID | null;
-  ingredients: Ingredient[];
-  params: BatchParams;
-  defaultBottles: { flavorName: string; additions: Addition[]; primingSugarG: number | null }[];
-  createdAt: ISODateTime;
-  batchCount: number;
-  avgOverall: number | null;
-}
-
-export interface Recipe {
-  id: ID;
-  name: string;
-  fermentationTypeId: FermentationTypeId;
-  latestVersion: RecipeVersion;
-  versionCount: number;
-  batchCount: number;
-  avgOverall: number | null;
-  archivedAt: ISODateTime | null;
-  createdAt: ISODateTime;
-}
-
-export type DiffValue = string | number | null;
-
-export interface DiffRow {
-  key: string;
-  label: string;
-  group: "ingredients" | "params" | "additions" | "process" | "measurements" | "result";
-  values: DiffValue[];
-  unit: string | null;
-  differs: boolean;
-  direction: ("up" | "down" | "same" | null)[];
-}
-
-export interface CompareItemRef {
-  type: "batch" | "bottle";
-  id: ID;
-}
-
-export interface CompareResult {
-  items: { ref: CompareItemRef; title: string; subtitle: string; isReference: boolean }[];
-  rows: DiffRow[];
-}
+export type CreateBatchRequest = S["CreateBatchRequest"];
+export type CreateLogRequest = S["CreateLogRequest"];
+export type CreateBottlesRequest = S["CreateBottlesRequest"];
+export type UpdateBottleRequest = S["UpdateBottleRequest"];
+export type FinishRequest = S["FinishBottleRequest"];
+export type SaveAsRecipeRequest = S["SaveAsRecipeRequest"];
+export type BrewAgainDraft = S["BrewAgainResponse"];
 
 export interface Page<T> {
   data: T[];
   nextCursor: string | null;
-}
-
-export interface TodayView {
-  active: BatchSummary[];
-  due: Reminder[];
-  recentlyFinished: BatchSummary[];
-}
-
-export interface Entitlements {
-  plan: "free" | "pro";
-  limits: { compareItems: number; customMeasurements: number };
-  source: string | null;
-}
-
-/** RFC 9457 problem details, as returned by every non-2xx response. */
-export interface Problem {
-  type: string;
-  title: string;
-  status: number;
-  detail?: string;
-  code: string;
-  errors?: { field: string; code: string; message: string }[];
-  requestId?: string;
 }
 
 export type BatchSort = "started_desc" | "started_asc" | "rating_desc" | "updated_desc";
@@ -238,38 +77,12 @@ export interface BatchQuery {
   limit?: number;
 }
 
-export interface CreateBatchRequest {
-  fermentationTypeId: FermentationTypeId;
-  name?: string;
-  startedAt?: ISODateTime;
-  volumeMl: number;
-  vessel?: string | null;
-  ingredients: Ingredient[];
-  params: BatchParams;
-  source?: { type: "recipe_version"; id: ID } | { type: "batch"; id: ID };
-  hypothesis?: string | null;
-}
-
-export interface BrewAgainDraft {
-  draft: CreateBatchRequest;
-  base: { ref: CompareItemRef; title: string };
-  recipeVersion: RecipeVersionRef | null;
-}
-
+/** The profile plus the plan, as the Me screen shows it (GET /v1/me + GET /v1/entitlements). */
 export interface Profile {
   displayName: string;
-  unitSystem: "metric" | "us";
-  tempUnit: "C" | "F";
+  email: string | null;
+  unitSystem: Me["unitSystem"];
+  tempUnit: Me["tempUnit"];
   timezone: string;
-  plan: "free" | "pro";
-}
-
-export interface CreateLogRequest {
-  kind: LogKind;
-  occurredAt?: ISODateTime;
-  note?: string | null;
-  measurements?: Measurement[];
-  bottleId?: ID | null;
-  /** "Burp all": one entry per bottle. */
-  bottleIds?: ID[];
+  plan: Entitlements["plan"];
 }

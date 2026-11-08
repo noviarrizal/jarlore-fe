@@ -27,7 +27,7 @@ async function Recipes() {
     return (
       <EmptyState
         title="Recipes appear when you save a batch you loved"
-        body="Finish a batch, rate it, and choose “Save as recipe”. Next time, brew it again in two taps."
+        body="Finish a batch or a bottle, rate it, and choose “Save as recipe”. Next time, start from it in two taps."
       />
     );
   }
@@ -42,7 +42,10 @@ async function Recipes() {
             </Link>
           </h2>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-small text-ink-2">
-            <span>{typeName[r.fermentationTypeId]}</span>
+            <span>
+              {typeName[r.fermentationTypeId]}
+              {r.scope === "bottle" ? " bottle" : ""}
+            </span>
             <span>
               <span className="code text-ink">v{r.latestVersion.versionNo}</span> since {formatDate(r.latestVersion.createdAt)}
             </span>

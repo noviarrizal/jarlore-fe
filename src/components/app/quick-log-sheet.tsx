@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
-import { logEntry } from "@/features/batches/actions";
+import { listMeasurementDefinitions, logEntry } from "@/features/batches/actions";
 import type { CreateLogRequest, LogKind, Measurement, MeasurementDefinition } from "@/lib/api/types";
 import { Button } from "@/components/ui/button";
 import { PenLine } from "lucide-react";
@@ -20,14 +20,10 @@ export type QuickLogTarget = {
   bottles?: { id: string; label: string; flavorName: string }[];
 };
 
-// System measurement definitions. Will come from GET /v1/measurement-definitions.
-const PH: MeasurementDefinition = { id: "md-ph", key: "ph", label: "pH", unit: "pH", decimals: 1, min: 2, max: 7, isSystem: true };
-const TEMP: MeasurementDefinition = { id: "md-temp", key: "temp", label: "Temperature", unit: "°C", decimals: 1, min: 0, max: 45, isSystem: true };
-const MORE: MeasurementDefinition[] = [
-  { id: "md-brix", key: "brix", label: "Brix", unit: "°Bx", decimals: 1, min: 0, max: 30, isSystem: true },
-  { id: "md-sg", key: "sg", label: "Gravity", unit: "SG", decimals: 3, min: 0.99, max: 1.1, isSystem: true },
-  { id: "md-fizz", key: "fizz_height", label: "Foam height", unit: "cm", decimals: 0, min: 0, max: 30, isSystem: false },
-];
+// pH and temperature are system definitions with fixed keys, shown up front. The
+// rest come from GET /v1/measurement-definitions when the sheet first opens.
+const PH: MeasurementDefinition = { id: "ph", key: "ph", label: "pH", kind: "numeric", unit: "pH", decimals: 1, min: 2, max: 7, requiresMethod: true, isSystem: true };
+const TEMP: MeasurementDefinition = { id: "temp", key: "temp", label: "Temperature", kind: "numeric", unit: "°C", decimals: 1, min: -10, max: 60, requiresMethod: false, isSystem: true };
 
 const kinds: { value: LogKind; label: string; verb: string }[] = [
   { value: "taste", label: "Taste", verb: "Log taste" },
@@ -42,7 +38,16 @@ const QuickLogContext = createContext<OpenLog>(() => {});
 /** One quick-log sheet for the whole app; any screen opens it with useQuickLog(). */
 export function QuickLogProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<{ target: QuickLogTarget; kind: LogKind; key: number } | null>(null);
-  const open = useCallback<OpenLog>((target, kind = "taste") => setState({ target, kind, key: Date.now() }), []);
+  const [definitions, setDefinitions] = useState<MeasurementDefinition[] | null>(null);
+  const open = useCallback<OpenLog>(
+    (target, kind = "taste") => {
+      setState({ target, kind, key: Date.now() });
+      if (definitions === null) {
+        listMeasurementDefinitions().then((res) => setDefinitions(res.ok ? res.data : []));
+      }
+    },
+    [definitions],
+  );
   return (
     <QuickLogContext.Provider value={open}>
       {children}
@@ -50,6 +55,7 @@ export function QuickLogProvider({ children }: { children: ReactNode }) {
         key={state?.key}
         target={state?.target ?? null}
         initialKind={state?.kind}
+        definitions={definitions ?? []}
         open={state !== null}
         onClose={() => setState(null)}
       />
@@ -101,11 +107,13 @@ export function QuickLogSheet({
   open,
   onClose,
   initialKind = "taste",
+  definitions,
 }: {
   target: QuickLogTarget | null;
   open: boolean;
   onClose: () => void;
   initialKind?: LogKind;
+  definitions: MeasurementDefinition[];
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -116,6 +124,10 @@ export function QuickLogSheet({
   const [bottleIds, setBottleIds] = useState<string[]>([]);
 
   if (!target) return null;
+  const ph = definitions.find((d) => d.key === "ph") ?? PH;
+  const temp = definitions.find((d) => d.key === "temp") ?? TEMP;
+  // Only number readings fit this sheet; yes/no and text readings are P1.
+  const more = definitions.filter((d) => d.key !== "ph" && d.key !== "temp" && (d.kind === "numeric" || d.kind === "scale"));
   const bottles = target.bottles ?? [];
   const allBottles = bottles.length > 0 && bottleIds.length === 0;
 
@@ -126,13 +138,13 @@ export function QuickLogSheet({
   }
 
   function measurements(): Measurement[] {
-    return [PH, TEMP, ...MORE]
-      .filter((d) => values[d.key]?.trim())
+    return [ph, temp, ...more]
+      .filter((d) => values[d.key]?.trim() && !Number.isNaN(Number(values[d.key].replace(",", "."))))
       .map((d) => ({
         definitionKey: d.key,
         value: Number(values[d.key].replace(",", ".")),
         unit: d.unit,
-        method: d.key === "ph" ? phMethod : null,
+        method: d.requiresMethod ? phMethod : null,
       }));
   }
 
@@ -142,7 +154,8 @@ export function QuickLogSheet({
   async function save() {
     if (!target) return;
     const input: CreateLogRequest = {
-      kind: kind === "taste" || kind === "note" || kind === "burp" ? kind : "measure",
+      // A "measure" entry needs a reading; without one it is simply a note.
+      kind: kind === "measure" && ms.length === 0 ? "note" : (kind as CreateLogRequest["kind"]),
       note: note.trim() || null,
       measurements: ms,
       ...(bottles.length ? { bottleIds: allBottles ? bottles.map((b) => b.id) : bottleIds } : {}),
@@ -207,7 +220,7 @@ export function QuickLogSheet({
         {kind !== "burp" && (
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-2">
-              <MeasurementInput definition={PH} value={values.ph ?? ""} onChange={(v) => setValues((s) => ({ ...s, ph: v }))} />
+              <MeasurementInput definition={ph} value={values.ph ?? ""} onChange={(v) => setValues((s) => ({ ...s, ph: v }))} />
               <div role="radiogroup" aria-label="pH method" className="flex gap-1">
                 {(["meter", "strip"] as const).map((m) => (
                   <button
@@ -226,18 +239,18 @@ export function QuickLogSheet({
                 ))}
               </div>
             </div>
-            <MeasurementInput definition={TEMP} value={values.temp ?? ""} onChange={(v) => setValues((s) => ({ ...s, temp: v }))} />
+            <MeasurementInput definition={temp} value={values.temp ?? ""} onChange={(v) => setValues((s) => ({ ...s, temp: v }))} />
           </div>
         )}
 
-        {kind !== "burp" && (
+        {kind !== "burp" && more.length > 0 && (
           <details className="group">
             <summary className="flex h-11 cursor-pointer list-none items-center text-label text-action [&::-webkit-details-marker]:hidden">
               <span className="group-open:hidden">More measurements</span>
               <span className="hidden group-open:inline">Fewer measurements</span>
             </summary>
             <div className="grid grid-cols-2 gap-3 pt-1">
-              {MORE.map((d) => (
+              {more.map((d) => (
                 <MeasurementInput
                   key={d.key}
                   definition={d}

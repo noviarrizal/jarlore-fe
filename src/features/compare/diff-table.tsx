@@ -35,7 +35,7 @@ export function DiffTable({
   }
 
   return (
-    <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
+    <div className="relative -mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
       <table className="w-full min-w-max border-collapse text-left md:min-w-0">
         <caption className="sr-only">{caption}</caption>
         <thead>

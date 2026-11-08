@@ -1,4 +1,4 @@
-import { GitCompareArrows, Wind } from "lucide-react";
+import { GitCompareArrows, Plus, Wind } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -7,6 +7,7 @@ import { LogButton } from "@/components/app/quick-log-sheet";
 import { Timeline } from "@/components/app/timeline";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState, SkeletonRows } from "@/components/ui/states";
+import { BottleActions } from "@/features/batches/bottle-actions";
 import { BottleLineage } from "@/features/batches/bottle-lineage";
 import { DiffTable } from "@/features/compare/diff-table";
 import { api, isNotFound } from "@/lib/api";
@@ -30,7 +31,11 @@ async function Bottles({ params }: { params: PageProps<"/batches/[id]/bottles">[
     if (isNotFound(e)) notFound();
     throw e;
   });
-  const [logs, now] = await Promise.all([api.listBatchLogs(id), api.now()]);
+  const [logs, now, recipes] = await Promise.all([api.listBatchLogs(id), api.now(), api.listRecipes("bottle")]);
+  const bottleRecipes = recipes.data
+    .filter((r) => r.fermentationTypeId === batch.fermentationTypeId && r.archivedAt === null)
+    .map((r) => ({ id: r.id, name: r.name, versionCount: r.versionCount }));
+  const canAdd = batch.status === "active" && (batch.stage === "f1" || batch.stage === "f2");
   const back = { href: `/batches/${batch.id}`, label: `${batch.code} ${batch.name}` };
 
   if (batch.bottles.length === 0) {
@@ -40,6 +45,13 @@ async function Bottles({ params }: { params: PageProps<"/batches/[id]/bottles">[
         <EmptyState
           title="Not bottled yet"
           body="When F1 tastes right, split it into bottles. Give each one a different flavour, sugar or headspace, and Jarlore keeps track of which was which."
+          action={
+            canAdd ? (
+              <ButtonLink href={`/batches/${batch.id}/bottle`} variant="primary">
+                Bottle it
+              </ButtonLink>
+            ) : undefined
+          }
         />
       </>
     );
@@ -57,10 +69,15 @@ async function Bottles({ params }: { params: PageProps<"/batches/[id]/bottles">[
         title="F2 experiments"
         meta={`${batch.bottles.length} bottles from ${batch.code}, bottled ${formatDate(batch.bottles[0].startedAt)}`}
         actions={
-          open.length > 0 ? (
+          open.length > 0 || canAdd ? (
             <>
-              <LogButton target={target} kind="burp" label="Burp" icon={<Wind className="size-4.5" aria-hidden />} />
-              <LogButton target={target} variant="primary" />
+              {open.length > 0 && <LogButton target={target} kind="burp" label="Burp" icon={<Wind className="size-4.5" aria-hidden />} />}
+              {canAdd && (
+                <ButtonLink href={`/batches/${batch.id}/bottle`} icon={<Plus className="size-4" aria-hidden />}>
+                  Add bottles
+                </ButtonLink>
+              )}
+              {open.length > 0 && <LogButton target={target} variant="primary" />}
             </>
           ) : undefined
         }
@@ -71,7 +88,13 @@ async function Bottles({ params }: { params: PageProps<"/batches/[id]/bottles">[
       )}
 
       <Section title="From jar to bottles">
-        <BottleLineage batch={batch} rows={diff?.rows ?? []} logs={logs.data} now={now} />
+        <BottleLineage
+          batch={batch}
+          rows={diff?.rows ?? []}
+          logs={logs.data}
+          now={now}
+          actions={(b) => <BottleActions bottle={b} batchCode={batch.code} bottleRecipes={bottleRecipes} />}
+        />
       </Section>
 
       {diff && (

@@ -23,8 +23,12 @@ Everything else is behind disclosure or on a deeper screen.
 | `/recipes` | Recipes | Built | My saved configurations |
 | `/recipes/[id]` | Recipe detail | Built | Current version, how it evolved, what came of it |
 | `/compare?items=batch:a,batch:b` | Compare | Built | What changed, and how did the result differ? |
-| `/me` | Me | Read-only overview | Settings and trust (export, plan, food safety) |
-| — | Finish & rate, Bottle it (split), Save as recipe, onboarding, auth | **Not built** | Next tasks |
+| `/batches/[id]/bottle` | Bottle it / Add bottles | Built | Split the jar: one experiment per bottle, optionally from a bottle recipe or an earlier bottle (live diff) |
+| (sheet) | Finish & rate | Built | Rate a batch or a bottle; ratings are history |
+| (sheet) | Save as recipe | Built | Batch → base recipe; bottle → bottle recipe; new recipe or next version |
+| `/me` | Me | Read-only overview, sign out | Settings and trust (plan, food safety) |
+| `/login` | Sign in | Development sign-in only | Supabase sign-in is P0 |
+| — | Onboarding, editing settings, discard/archive, export | **Not built** | Next tasks |
 
 ## Layout specs
 

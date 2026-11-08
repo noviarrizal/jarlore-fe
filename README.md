@@ -4,16 +4,21 @@ The web app for **Jarlore**, a personal fermentation workspace: track every batc
 
 Next.js 16 (App Router, Cache Components) · React 19 · Tailwind CSS 4 · TypeScript. Mobile-first PWA target.
 
-> Data currently comes from in-memory mock fixtures in `src/mocks` (one demo brewer's kitchen), because `jarlore-be` has no implementation yet. Nothing persists across server restarts.
+Every screen reads and writes the Go API in `../jarlore-be` (Neon PostgreSQL in production). There is no mock data: without a reachable API the app shows its error states.
 
 ## Run
 
 ```bash
 pnpm install
-pnpm dev          # http://localhost:3000 — the app lives at /today
+cp .env.example .env.local   # JARLORE_API_URL, and JARLORE_DEV_AUTH_URL for development sign-in
+pnpm dev                     # http://localhost:3000 → /login → /today
 pnpm lint
+npx tsc --noEmit
 pnpm build
+pnpm gen:api                 # regenerate src/lib/api/schema.d.ts after the OpenAPI spec changes
 ```
+
+Start jarlore-be first (its README: database, `go run ./cmd/devauth`, `go run ./cmd/api`).
 
 ## Docs
 
@@ -22,4 +27,4 @@ pnpm build
 - `docs/design/SCREEN_GUIDELINES.md`: screens, layout, flows, review checklist
 - `docs/architecture/FRONTEND_ARCHITECTURE.md`: structure, data flow, API integration, contract gaps
 - `CLAUDE.md`: conventions every change must follow
-- API contract: `../jarlore-be/docs/api/openapi.yaml`
+- API contract: `../jarlore-be/api/openapi.yaml`

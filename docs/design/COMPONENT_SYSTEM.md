@@ -50,7 +50,12 @@ Deliberately **not** built yet, because nothing needs them: dropdown menu, toolt
 - `batches/bottle-lineage`: F2 lineage with sibling-diff markers.
 - `batches/batch-form`: one form for Brew again (with a live server diff) and New batch.
 - `batches/rating-summary`: the finished result's dimensions.
-- `batches/actions.ts`: server actions (`logEntry`, `previewDiff`, `startBatch`).
+- `batches/bottle-form`: Bottle it. One row per bottle, additions editor, "Start from" a bottle recipe or earlier bottle, live diff and "becomes vN" note from the server.
+- `batches/finish-sheet`: `FinishButton` + sheet. Overall is required; fizz, sweet↔tart, flavour, would-repeat, off-notes and a note are optional.
+- `batches/save-recipe-sheet`: `SaveRecipeButton` + sheet. New recipe or next version of an existing one of the same scope and type.
+- `batches/bottle-actions`: per-bottle actions on the F2 page: Finish & rate (or Rate), Mark as best (selected state, not a second primary), Save as recipe.
+- `batches/actions.ts`: server actions (`logEntry`, `previewDiff`, `previewBottle`, `startBatch`, `bottleBatch`, `finishBatch`, `finishBottle`, `updateBottle`, `saveAsRecipe`, `listMeasurementDefinitions`).
+- `auth/sign-in-form`, `auth/actions.ts`: development sign-in and sign out.
 - `compare/diff-table`, `compare/compare-view`, `compare/marking`: rendering of server `DiffRow`s.
 - `today/due-list`: the reminder checklist that opens the quick log already set up.
 

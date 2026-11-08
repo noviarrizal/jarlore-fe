@@ -7,7 +7,7 @@ Jarlore is a mobile-first fermentation notebook: track batches, split F1 into F2
 - `docs/design/COMPONENT_SYSTEM.md`: what exists and when to use it
 - `docs/design/SCREEN_GUIDELINES.md`: screen inventory, layout specs, review checklist
 - `docs/architecture/FRONTEND_ARCHITECTURE.md`: data flow and what the frontend must never decide
-- The API contract is `../jarlore-be/docs/api/openapi.yaml`. `src/lib/api/types.ts` mirrors it, and the spec wins.
+- The API contract is `../jarlore-be/api/openapi.yaml`. Types are generated from it into `src/lib/api/schema.d.ts` (`pnpm gen:api`); `types.ts` only aliases them. Never hand-write API shapes.
 
 ## Design rules (non-negotiable)
 - Use only the tokens in `src/app/globals.css` (`bg-paper`, `text-ink-2`, `border-rule`, `rounded-control`, `max-w-content`, …). No hex values, arbitrary radii, shadows or `[..rem]` widths in components. If a value is missing, add a token and document it.
@@ -29,8 +29,9 @@ Jarlore is a mobile-first fermentation notebook: track batches, split F1 into F2
 - Writes send an idempotency key. Errors are `ApiError` (problem+json); map 404 to `notFound()`.
 - No business rules in the frontend: diffs, versioning, entitlements and validation belong to jarlore-be. The UI renders `DiffRow`s and decides only where the marker goes (`features/compare/marking.ts`).
 - Layers: `components/ui` (no API imports) → `components/app` → `features/*` → `app/**`. Don't create an abstraction with one consumer.
-- `src/mocks/*` stands in for the API until jarlore-be exists. Only `src/lib/api/index.ts` imports it.
-- Don't add dependencies without a concrete need (currently only lucide-react and server-only).
+- There is no mock data. Screens read jarlore-be through `api` (`src/lib/api/http-api.ts`); a failure shows an error state, never invented data.
+- The access token lives in the httpOnly `jarlore_session` cookie and is read only on the server (`src/lib/auth/session.ts`).
+- Don't add dependencies without a concrete need (currently lucide-react and server-only; openapi-typescript as a dev tool).
 
 ## Before you say a UI change is done
 1. `pnpm lint`, `npx tsc --noEmit`, `pnpm build`.

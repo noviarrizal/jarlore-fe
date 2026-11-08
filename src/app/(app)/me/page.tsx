@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Page, PageHeader, Section } from "@/components/app/page-header";
 import { SkeletonRows } from "@/components/ui/states";
+import { Button } from "@/components/ui/button";
+import { signOut } from "@/features/auth/actions";
 import { api } from "@/lib/api";
 
 export const metadata: Metadata = { title: "Me" };
@@ -31,6 +33,7 @@ async function Me() {
         <Rows
           rows={[
             ["Name", me.displayName],
+            ["Email", me.email ?? "—"],
             ["Units", me.unitSystem === "metric" ? "Metric (g, ml, L)" : "US (oz, fl oz, gal)"],
             ["Temperature", me.tempUnit === "C" ? "Celsius" : "Fahrenheit"],
             ["Time zone", me.timezone],
@@ -40,23 +43,25 @@ async function Me() {
 
       <Section title="Measurements">
         <p className="mb-2 text-small text-ink-2">
-          pH, temperature, Brix and gravity are built in. You have {custom.length} of {entitlements.limits.customMeasurements} custom measurements on the free plan.
+          pH, temperature, Brix and gravity are built in.{" "}
+          {entitlements.limits.customMeasurements === null
+            ? `You have ${custom.length} custom measurements.`
+            : `You have ${custom.length} of ${entitlements.limits.customMeasurements} custom measurements on the free plan.`}
         </p>
         <Rows rows={defs.map((d) => [d.label, `${d.unit}${d.isSystem ? "" : ", custom"}`])} />
       </Section>
 
-      <Section title="Reminders and calendar">
-        <Rows
-          rows={[
-            ["Email reminders", "On, sent at the time a check is due"],
-            ["Calendar feed", "Subscribe from Apple, Google or Outlook calendar"],
-          ]}
-        />
+      <Section title="Reminders">
+        <p className="max-w-prose text-body text-ink-2">
+          Taste checks, burps and fridge reminders appear on Today when they&apos;re due. Email reminders and a calendar feed aren&apos;t
+          available yet.
+        </p>
       </Section>
 
       <Section title="Your data">
         <p className="max-w-prose text-body text-ink-2">
-          Export everything as CSV and JSON at any time, on any plan. Deleting your account removes every batch, log and photo.
+          Your batches, bottles, logs and recipes are kept for you alone. Export and account deletion aren&apos;t available yet; they will
+          be free on every plan.
         </p>
       </Section>
 
@@ -67,6 +72,12 @@ async function Me() {
             ["Compare", `Up to ${entitlements.limits.compareItems} at once`],
           ]}
         />
+      </Section>
+
+      <Section title="Session">
+        <form action={signOut}>
+          <Button type="submit">Sign out</Button>
+        </form>
       </Section>
 
       <Section title="Food safety">
