@@ -7,9 +7,9 @@ import { redirect } from "next/navigation";
  * which forwards it to jarlore-be as a Bearer token. The browser never sees it in JS.
  *
  * Today the token comes from the local development issuer (jarlore-be `cmd/devauth`).
- * Production sign-in with Supabase Auth plugs in here: store the Supabase access
- * token under the same cookie (or read it from the Supabase session) and nothing
- * else changes. See docs/architecture/FRONTEND_ARCHITECTURE.md, "Authentication".
+ * Production sign-in with Neon Auth (@neon/auth) plugs in here: return the Neon
+ * Auth JWT for the current session instead of the cookie value, and nothing else
+ * changes. See docs/architecture/FRONTEND_ARCHITECTURE.md, "Authentication".
  */
 export const SESSION_COOKIE = "jarlore_session";
 

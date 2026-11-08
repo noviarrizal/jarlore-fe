@@ -87,7 +87,7 @@ Every API call reads the session cookie, so pages render at request time; `api.n
 
 - **Built:** the access token is kept in the httpOnly `jarlore_session` cookie, read on the server and sent as `Authorization: Bearer` to jarlore-be. `src/proxy.ts` sends visitors without the cookie to `/login`. A 401 from the API (expired token) redirects to `/login?expired=1`; server actions rethrow that redirect instead of reporting an error.
 - **Development sign-in:** `/login` asks jarlore-be's local issuer (`cmd/devauth`, `JARLORE_DEV_AUTH_URL`) for a token for the demo brewer or a second brewer (to see isolation). It is disabled in production builds.
-- **Not built (P0):** Supabase Auth sign-in (email OTP / magic link, Google), per jarlore-be ADR-003. It plugs into `session.ts`: store the Supabase access token in the same cookie and refresh it before expiry.
+- **Not built (P0):** Neon Auth sign-in with `@neon/auth` (email OTP, then Google), per jarlore-be ADR-003. It plugs into `session.ts`: the server reads the Neon Auth JWT (EdDSA, 15-minute lifetime, refreshed by the SDK) for the current session and forwards it. Needs `NEON_AUTH_BASE_URL` and `NEON_AUTH_COOKIE_SECRET`, server-side only.
 - **Authorization.** All authorization happens in the API, never in the UI.
 - **The UI never decides anything from a cached claim** except navigation (e.g. hiding Pro hints).
 

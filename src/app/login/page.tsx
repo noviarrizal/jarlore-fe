@@ -18,7 +18,7 @@ export default function LoginPage() {
         </Suspense>
       ) : (
         <p className="mt-3 max-w-prose text-body text-ink-2">
-          Email sign-in isn&apos;t connected on this server yet. Ask whoever runs it to set up Supabase Auth, or run Jarlore locally with
+          Email sign-in isn&apos;t connected on this server yet. Ask whoever runs it to set up Neon Auth, or run Jarlore locally with
           the development sign-in.
         </p>
       )}

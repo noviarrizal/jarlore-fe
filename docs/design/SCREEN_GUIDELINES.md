@@ -27,7 +27,7 @@ Everything else is behind disclosure or on a deeper screen.
 | (sheet) | Finish & rate | Built | Rate a batch or a bottle; ratings are history |
 | (sheet) | Save as recipe | Built | Batch → base recipe; bottle → bottle recipe; new recipe or next version |
 | `/me` | Me | Read-only overview, sign out | Settings and trust (plan, food safety) |
-| `/login` | Sign in | Development sign-in only | Supabase sign-in is P0 |
+| `/login` | Sign in | Development sign-in only | Neon Auth sign-in is P0 |
 | — | Onboarding, editing settings, discard/archive, export | **Not built** | Next tasks |
 
 ## Layout specs
