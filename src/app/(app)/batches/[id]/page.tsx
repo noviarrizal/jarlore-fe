@@ -15,7 +15,7 @@ import { BottleLineage } from "@/features/batches/bottle-lineage";
 import { FinishButton } from "@/features/batches/finish-sheet";
 import { SaveRecipeButton } from "@/features/batches/save-recipe-sheet";
 import { RatingSummary } from "@/features/batches/rating-summary";
-import { api, isNotFound } from "@/lib/api";
+import { api, isNotFound, onApiError } from "@/lib/api";
 import type { Batch } from "@/lib/api/types";
 import { ageLabel, dayNumber, formatAmount, formatDate, formatDateYear, formatTime, formatVolume, hoursBetween, relativeDay, typeName } from "@/lib/format";
 
@@ -37,12 +37,13 @@ async function BatchDetail({ params }: { params: PageProps<"/batches/[id]">["par
     if (isNotFound(e)) notFound();
     throw e;
   });
-  const [logs, types, now, reference, parent, recipes] = await Promise.all([
+  const [logs, types, now, tz, reference, parent, recipes] = await Promise.all([
     api.listBatchLogs(id),
     api.listFermentationTypes(),
     api.now(),
+    api.timezone(),
     api.getBatchReference(id),
-    batch.parentBatchId ? api.getBatch(batch.parentBatchId).catch(() => null) : Promise.resolve(null),
+    batch.parentBatchId ? api.getBatch(batch.parentBatchId).catch(onApiError(null)) : Promise.resolve(null),
     batch.status === "finished" ? api.listRecipes("batch") : Promise.resolve(null),
   ]);
   const bottleDiff =
@@ -74,7 +75,7 @@ async function BatchDetail({ params }: { params: PageProps<"/batches/[id]">["par
         }
         meta={
           <>
-            {typeName[batch.fermentationTypeId]}, started {formatDateYear(batch.startedAt)}
+            {typeName[batch.fermentationTypeId]}, started {formatDateYear(batch.startedAt, tz)}
             {batch.recipeVersion && (
               <>
                 {" "}from{" "}
@@ -117,7 +118,7 @@ async function BatchDetail({ params }: { params: PageProps<"/batches/[id]">["par
               {active ? (
                 <StageTag stage={batch.stage} detail={ageLabel(batch.bottles[0]?.startedAt ?? batch.startedAt, now, batch.fermentationTypeId).toLowerCase()} />
               ) : (
-                <StageTag stage="done" status={batch.status} detail={batch.finishedAt ? formatDate(batch.finishedAt) : undefined} />
+                <StageTag stage="done" status={batch.status} detail={batch.finishedAt ? formatDate(batch.finishedAt, tz) : undefined} />
               )}
               {batch.isReference && <span className="text-small font-semibold text-tea-ink">Your reference batch</span>}
               {batch.rating && <Score value={batch.rating.overall} />}
@@ -141,7 +142,7 @@ async function BatchDetail({ params }: { params: PageProps<"/batches/[id]">["par
                   <dd className="mt-0.5 text-body">
                     {batch.lastLog ? (
                       <>
-                        {relativeDay(batch.lastLog.occurredAt, now)}, {formatTime(batch.lastLog.occurredAt)}
+                        {relativeDay(batch.lastLog.occurredAt, now, tz)}, {formatTime(batch.lastLog.occurredAt, tz)}
                         {batch.lastLog.note && <span className="note block text-ink">{batch.lastLog.note}</span>}
                       </>
                     ) : (
@@ -153,7 +154,7 @@ async function BatchDetail({ params }: { params: PageProps<"/batches/[id]">["par
                   <dt className="text-ink-2">Next</dt>
                   <dd className="mt-0.5 text-body">
                     {batch.nextReminder
-                      ? `${batch.nextReminder.label}, ${relativeDay(batch.nextReminder.dueAt, now).toLowerCase()}`
+                      ? `${batch.nextReminder.label}, ${relativeDay(batch.nextReminder.dueAt, now, tz).toLowerCase()}`
                       : "No reminder set"}
                   </dd>
                 </div>
@@ -205,12 +206,12 @@ async function BatchDetail({ params }: { params: PageProps<"/batches/[id]">["par
                 </Link>
               }
             >
-              <BottleLineage batch={batch} rows={bottleDiff?.rows ?? []} logs={logs.data} now={now} />
+              <BottleLineage batch={batch} rows={bottleDiff?.rows ?? []} logs={logs.data} now={now} tz={tz} />
             </Section>
           )}
 
           <Section title="Timeline">
-            <Timeline logs={logs.data} bottles={batch.bottles} now={now} />
+            <Timeline logs={logs.data} bottles={batch.bottles} now={now} tz={tz} />
           </Section>
         </div>
 

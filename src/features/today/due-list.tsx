@@ -11,7 +11,7 @@ type BatchRef = { id: string; code: string; name: string; bottles: Bottle[] };
  * Today's reminders as a short checklist. Tapping one opens the quick log already set to the
  * right kind (burp, taste) and the right bottle. Logging completes the reminder server-side.
  */
-export function DueList({ reminders, batches, now }: { reminders: Reminder[]; batches: BatchRef[]; now: string }) {
+export function DueList({ reminders, batches, now, tz }: { reminders: Reminder[]; batches: BatchRef[]; now: string; tz: string }) {
   const openLog = useQuickLog();
 
   return (
@@ -45,7 +45,7 @@ export function DueList({ reminders, batches, now }: { reminders: Reminder[]; ba
                 </span>
               </span>
               <span className={overdue ? "text-small font-semibold text-warning" : "text-small text-ink-2"}>
-                {relativeDay(r.dueAt, now) === "Today" ? formatTime(r.dueAt) : relativeDay(r.dueAt, now)}
+                {relativeDay(r.dueAt, now, tz) === "Today" ? formatTime(r.dueAt, tz) : relativeDay(r.dueAt, now, tz)}
               </span>
             </button>
           </li>

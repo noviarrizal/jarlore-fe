@@ -31,7 +31,7 @@ async function Bottles({ params }: { params: PageProps<"/batches/[id]/bottles">[
     if (isNotFound(e)) notFound();
     throw e;
   });
-  const [logs, now, recipes] = await Promise.all([api.listBatchLogs(id), api.now(), api.listRecipes("bottle")]);
+  const [logs, now, tz, recipes] = await Promise.all([api.listBatchLogs(id), api.now(), api.timezone(), api.listRecipes("bottle")]);
   const bottleRecipes = recipes.data
     .filter((r) => r.fermentationTypeId === batch.fermentationTypeId && r.archivedAt === null)
     .map((r) => ({ id: r.id, name: r.name, versionCount: r.versionCount }));
@@ -67,7 +67,7 @@ async function Bottles({ params }: { params: PageProps<"/batches/[id]/bottles">[
       <PageHeader
         back={back}
         title="F2 experiments"
-        meta={`${batch.bottles.length} bottles from ${batch.code}, bottled ${formatDate(batch.bottles[0].startedAt)}`}
+        meta={`${batch.bottles.length} bottles from ${batch.code}, bottled ${formatDate(batch.bottles[0].startedAt, tz)}`}
         actions={
           open.length > 0 || canAdd ? (
             <>
@@ -93,6 +93,7 @@ async function Bottles({ params }: { params: PageProps<"/batches/[id]/bottles">[
           rows={diff?.rows ?? []}
           logs={logs.data}
           now={now}
+          tz={tz}
           actions={(b) => <BottleActions bottle={b} batchCode={batch.code} bottleRecipes={bottleRecipes} />}
         />
       </Section>
@@ -124,7 +125,7 @@ async function Bottles({ params }: { params: PageProps<"/batches/[id]/bottles">[
       )}
 
       <Section title="Bottle log">
-        <Timeline logs={bottleLogs} bottles={batch.bottles} now={now} />
+        <Timeline logs={bottleLogs} bottles={batch.bottles} now={now} tz={tz} />
       </Section>
     </>
   );

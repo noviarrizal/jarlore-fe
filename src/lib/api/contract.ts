@@ -19,6 +19,7 @@ import type {
   LogEntry,
   MeasurementDefinition,
   Page,
+  Me,
   Profile,
   Recipe,
   RecipeScope,
@@ -28,6 +29,7 @@ import type {
   SaveAsRecipeRequest,
   TodayView,
   UpdateBottleRequest,
+  UpdateMeRequest,
 } from "./types";
 
 /**
@@ -38,6 +40,9 @@ export interface JarloreApi {
   /** "Now" for day counts, taken when the page renders. */
   now(): Promise<ISODateTime>;
   getMe(): Promise<Profile>; // GET /v1/me + GET /v1/entitlements
+  /** The user's IANA time zone, the zone every date and time is shown in. */
+  timezone(): Promise<string>; // GET /v1/me
+  updateMe(patch: UpdateMeRequest): Promise<Me>; // PATCH /v1/me
   getEntitlements(): Promise<Entitlements>; // GET /v1/entitlements
   listFermentationTypes(): Promise<FermentationType[]>; // GET /v1/fermentation-types
   listMeasurementDefinitions(): Promise<MeasurementDefinition[]>; // GET /v1/measurement-definitions

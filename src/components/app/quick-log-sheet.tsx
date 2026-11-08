@@ -23,7 +23,7 @@ export type QuickLogTarget = {
 // pH and temperature are system definitions with fixed keys, shown up front. The
 // rest come from GET /v1/measurement-definitions when the sheet first opens.
 const PH: MeasurementDefinition = { id: "ph", key: "ph", label: "pH", kind: "numeric", unit: "pH", decimals: 1, min: 2, max: 7, requiresMethod: true, isSystem: true };
-const TEMP: MeasurementDefinition = { id: "temp", key: "temp", label: "Temperature", kind: "numeric", unit: "°C", decimals: 1, min: -10, max: 60, requiresMethod: false, isSystem: true };
+const TEMP: MeasurementDefinition = { id: "temp", key: "temp", label: "Temp", kind: "numeric", unit: "°C", decimals: 1, min: -10, max: 60, requiresMethod: false, isSystem: true };
 
 const kinds: { value: LogKind; label: string; verb: string }[] = [
   { value: "taste", label: "Taste", verb: "Log taste" },

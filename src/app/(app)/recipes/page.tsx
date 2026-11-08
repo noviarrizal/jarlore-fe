@@ -21,7 +21,7 @@ export default function RecipesPage() {
 }
 
 async function Recipes() {
-  const { data } = await api.listRecipes();
+  const [{ data }, tz] = await Promise.all([api.listRecipes(), api.timezone()]);
 
   if (data.length === 0) {
     return (
@@ -47,7 +47,7 @@ async function Recipes() {
               {r.scope === "bottle" ? " bottle" : ""}
             </span>
             <span>
-              <span className="code text-ink">v{r.latestVersion.versionNo}</span> since {formatDate(r.latestVersion.createdAt)}
+              <span className="code text-ink">v{r.latestVersion.versionNo}</span> since {formatDate(r.latestVersion.createdAt, tz)}
             </span>
             <span>
               {r.batchCount} {r.batchCount === 1 ? "batch" : "batches"}

@@ -30,7 +30,7 @@ export default function TodayPage() {
 }
 
 async function Today() {
-  const [today, types, now] = await Promise.all([api.getToday(), api.listFermentationTypes(), api.now()]);
+  const [today, types, now, tz] = await Promise.all([api.getToday(), api.listFermentationTypes(), api.now(), api.timezone()]);
   // F2 rows show their bottles, so load full batches for those (the list projection has only a count).
   const f2 = await Promise.all(today.active.filter((b) => b.stage === "f2").map((b) => api.getBatch(b.id)));
   const bottlesOf = (id: string) => f2.find((b) => b.id === id)?.bottles;
@@ -41,7 +41,7 @@ async function Today() {
   if (today.active.length === 0) {
     return (
       <>
-        <PageHeader title="Today" meta={formatLongDay(now)} />
+        <PageHeader title="Today" meta={formatLongDay(now, tz)} />
         <EmptyState
           title="Nothing brewing yet"
           body="Add what's on your counter right now. It takes about 20 seconds, and you can backdate the start."
@@ -53,7 +53,7 @@ async function Today() {
 
   return (
     <>
-      <PageHeader title="Today" meta={formatLongDay(now)} />
+      <PageHeader title="Today" meta={formatLongDay(now, tz)} />
 
       {today.due.length > 0 && (
         <Section title="Due today" aside={<span className="num text-small text-ink-2">{today.due.length}</span>}>
@@ -61,6 +61,7 @@ async function Today() {
             reminders={today.due}
             batches={today.active.map((b) => ({ id: b.id, code: b.code, name: b.name, bottles: bottlesOf(b.id) ?? [] }))}
             now={now}
+            tz={tz}
           />
         </Section>
       )}
@@ -69,7 +70,7 @@ async function Today() {
         <Section title="On the counter">
           <div className="divide-y divide-rule border-y border-rule">
             {jars.map((b) => (
-              <BatchRow key={b.id} batch={b} now={now} types={types} />
+              <BatchRow key={b.id} batch={b} now={now} tz={tz} types={types} />
             ))}
           </div>
         </Section>
@@ -79,7 +80,7 @@ async function Today() {
         <Section title="In bottles">
           <div className="divide-y divide-rule border-y border-rule">
             {bottled.map((b) => (
-              <BatchRow key={b.id} batch={b} now={now} types={types} bottles={bottlesOf(b.id)} />
+              <BatchRow key={b.id} batch={b} now={now} tz={tz} types={types} bottles={bottlesOf(b.id)} />
             ))}
           </div>
         </Section>

@@ -1,0 +1,49 @@
+# Cloud Run service for the Jarlore web app (Next.js standalone server). Same
+# region as the API and Neon, scale to zero. Apply with:
+#   gcloud run services replace deploy/cloudrun.service.yaml --region asia-southeast1
+# Replace PROJECT_ID, VERSION, the API URL and NEON_AUTH_BASE_URL first. The cookie
+# secret comes from Secret Manager; nothing secret is in this file.
+# See docs/deployment/FRONTEND_HOSTING.md.
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: jarlore-web
+  labels:
+    cloud.googleapis.com/location: asia-southeast1
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "2"
+        run.googleapis.com/cpu-throttling: "true"     # request-based billing
+        run.googleapis.com/startup-cpu-boost: "true"  # Node starts slower than Go; boost costs nothing extra at min 0
+        run.googleapis.com/execution-environment: gen2
+    spec:
+      containerConcurrency: 40
+      timeoutSeconds: 30
+      serviceAccountName: jarlore-web@PROJECT_ID.iam.gserviceaccount.com
+      containers:
+        - image: asia-southeast1-docker.pkg.dev/PROJECT_ID/jarlore/jarlore-web:VERSION
+          ports:
+            - name: http1
+              containerPort: 8080
+          resources:
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          env:
+            - { name: JARLORE_API_URL, value: "https://jarlore-api-HASH-as.a.run.app" }
+            - { name: NEON_AUTH_BASE_URL, value: "https://NEON_AUTH_HOST/neondb/auth" }
+            - name: NEON_AUTH_COOKIE_SECRET
+              valueFrom: { secretKeyRef: { name: jarlore-neon-auth-cookie-secret, key: latest } }
+            # Never set JARLORE_DEV_AUTH_URL here: development sign-in is refused in
+            # production builds and off loopback anyway.
+          startupProbe:
+            httpGet: { path: /login, port: 8080 }
+            periodSeconds: 2
+            failureThreshold: 15
+            timeoutSeconds: 2
+  traffic:
+    - percent: 100
+      latestRevision: true

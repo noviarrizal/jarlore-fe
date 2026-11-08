@@ -1,8 +1,5 @@
 import type { BatchStage, FermentationTypeId, LogKind, Measurement, ReminderKind } from "@/lib/api/types";
 
-/** Display timezone. Will come from the profile (GET /v1/me) once auth exists. */
-export const DISPLAY_TZ = "Europe/London";
-
 const DAY = 86_400_000;
 
 export function daysBetween(from: string, to: string): number {
@@ -25,26 +22,60 @@ export function ageLabel(startedAt: string, now: string, type: FermentationTypeI
   return `Day ${dayNumber(startedAt, now)}`;
 }
 
-const dateFmt = new Intl.DateTimeFormat("en-GB", { timeZone: DISPLAY_TZ, day: "numeric", month: "short" });
-const dateYearFmt = new Intl.DateTimeFormat("en-GB", { timeZone: DISPLAY_TZ, day: "numeric", month: "short", year: "numeric" });
-const weekdayFmt = new Intl.DateTimeFormat("en-GB", { timeZone: DISPLAY_TZ, weekday: "short", day: "numeric", month: "short" });
-const longDayFmt = new Intl.DateTimeFormat("en-GB", { timeZone: DISPLAY_TZ, weekday: "long", day: "numeric", month: "long" });
-const timeFmt = new Intl.DateTimeFormat("en-GB", { timeZone: DISPLAY_TZ, hour: "2-digit", minute: "2-digit" });
-const ymd = new Intl.DateTimeFormat("en-CA", { timeZone: DISPLAY_TZ, year: "numeric", month: "2-digit", day: "2-digit" });
+/**
+ * Dates and times are shown in the user's own IANA time zone (profile.timezone,
+ * GET /v1/me), passed in explicitly so server and client render the same text.
+ * Stored timestamps are UTC instants; the zone only changes how they read.
+ * An unknown zone falls back to UTC rather than throwing.
+ */
+type Formatters = {
+  date: Intl.DateTimeFormat;
+  dateYear: Intl.DateTimeFormat;
+  weekday: Intl.DateTimeFormat;
+  longDay: Intl.DateTimeFormat;
+  time: Intl.DateTimeFormat;
+  ymd: Intl.DateTimeFormat;
+};
+const formatters = new Map<string, Formatters>();
 
-export const formatDate = (iso: string) => dateFmt.format(new Date(iso));
-export const formatDateYear = (iso: string) => dateYearFmt.format(new Date(iso));
-export const formatTime = (iso: string) => timeFmt.format(new Date(iso));
-export const formatLongDay = (iso: string) => longDayFmt.format(new Date(iso));
+function inZone(tz: string): Formatters {
+  let f = formatters.get(tz);
+  if (f) return f;
+  let timeZone = tz;
+  try {
+    new Intl.DateTimeFormat("en-GB", { timeZone });
+  } catch {
+    timeZone = "UTC";
+  }
+  f = {
+    date: new Intl.DateTimeFormat("en-GB", { timeZone, day: "numeric", month: "short" }),
+    dateYear: new Intl.DateTimeFormat("en-GB", { timeZone, day: "numeric", month: "short", year: "numeric" }),
+    weekday: new Intl.DateTimeFormat("en-GB", { timeZone, weekday: "short", day: "numeric", month: "short" }),
+    longDay: new Intl.DateTimeFormat("en-GB", { timeZone, weekday: "long", day: "numeric", month: "long" }),
+    time: new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }),
+    ymd: new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }),
+  };
+  formatters.set(tz, f);
+  return f;
+}
 
-/** "Today", "Yesterday", or "Mon 3 Nov". */
-export function relativeDay(iso: string, now: string): string {
-  const a = ymd.format(new Date(iso));
-  const b = ymd.format(new Date(now));
-  if (a === b) return "Today";
-  if (ymd.format(new Date(new Date(now).getTime() - DAY)) === a) return "Yesterday";
-  if (ymd.format(new Date(new Date(now).getTime() + DAY)) === a) return "Tomorrow";
-  return weekdayFmt.format(new Date(iso));
+export const formatDate = (iso: string, tz: string) => inZone(tz).date.format(new Date(iso));
+export const formatDateYear = (iso: string, tz: string) => inZone(tz).dateYear.format(new Date(iso));
+export const formatTime = (iso: string, tz: string) => inZone(tz).time.format(new Date(iso));
+export const formatLongDay = (iso: string, tz: string) => inZone(tz).longDay.format(new Date(iso));
+
+/** Calendar day of an instant in the zone, as YYYY-MM-DD. */
+export const localDay = (iso: string, tz: string) => inZone(tz).ymd.format(new Date(iso));
+
+/** "Today", "Yesterday", "Tomorrow" or "Mon 3 Nov", by calendar day in the user's zone. */
+export function relativeDay(iso: string, now: string, tz: string): string {
+  const day = localDay(iso, tz);
+  const today = localDay(now, tz);
+  if (day === today) return "Today";
+  const diff = Math.round((Date.parse(`${day}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / DAY);
+  if (diff === -1) return "Yesterday";
+  if (diff === 1) return "Tomorrow";
+  return inZone(tz).weekday.format(new Date(iso));
 }
 
 export const typeName: Record<FermentationTypeId, string> = {

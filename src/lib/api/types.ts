@@ -54,6 +54,7 @@ export type CreateBatchRequest = S["CreateBatchRequest"];
 export type CreateLogRequest = S["CreateLogRequest"];
 export type CreateBottlesRequest = S["CreateBottlesRequest"];
 export type UpdateBottleRequest = S["UpdateBottleRequest"];
+export type UpdateMeRequest = S["UpdateMeRequest"];
 export type FinishRequest = S["FinishBottleRequest"];
 export type SaveAsRecipeRequest = S["SaveAsRecipeRequest"];
 export type BrewAgainDraft = S["BrewAgainResponse"];
@@ -80,6 +81,8 @@ export interface BatchQuery {
 /** The profile plus the plan, as the Me screen shows it (GET /v1/me + GET /v1/entitlements). */
 export interface Profile {
   displayName: string;
+  /** The name the user set, or null (displayName then falls back to the email). */
+  savedName: string | null;
   email: string | null;
   unitSystem: Me["unitSystem"];
   tempUnit: Me["tempUnit"];

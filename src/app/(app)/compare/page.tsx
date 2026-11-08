@@ -5,7 +5,7 @@ import { Page, PageHeader } from "@/components/app/page-header";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState, ErrorState, SkeletonRows } from "@/components/ui/states";
 import { CompareView } from "@/features/compare/compare-view";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, onApiError } from "@/lib/api";
 import type { CompareItemRef } from "@/lib/api/types";
 
 export const metadata: Metadata = { title: "Compare" };
@@ -55,9 +55,11 @@ async function Compare({ searchParams }: { searchParams: PageProps<"/compare">["
     );
   }
 
+  // Only the API's refusals are shown here; an expired session still redirects and
+  // an unreachable API goes to the error boundary.
   const outcome = await api.compare(items).then(
     (data) => ({ ok: true as const, data }),
-    (error: unknown) => ({ ok: false as const, error }),
+    (error: unknown) => onApiError({ ok: false as const, error })(error),
   );
   if (!outcome.ok) {
     const result = outcome.error;

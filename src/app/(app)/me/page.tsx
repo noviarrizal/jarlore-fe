@@ -4,13 +4,14 @@ import { Page, PageHeader, Section } from "@/components/app/page-header";
 import { SkeletonRows } from "@/components/ui/states";
 import { Button } from "@/components/ui/button";
 import { signOut } from "@/features/auth/actions";
+import { ProfileForm } from "@/features/me/profile-form";
 import { api } from "@/lib/api";
 
 export const metadata: Metadata = { title: "Me" };
 
 /**
- * Settings overview. Read-only until jarlore-be exists: values come from GET /v1/me,
- * /v1/entitlements and /v1/measurement-definitions. Editing flows are the next task.
+ * Settings. Profile preferences are edited here (PATCH /v1/me); the rest is read
+ * from GET /v1/entitlements and /v1/measurement-definitions.
  */
 export default function MePage() {
   return (
@@ -30,15 +31,10 @@ async function Me() {
   return (
     <>
       <Section title="Profile" className="mt-0 md:mt-0">
-        <Rows
-          rows={[
-            ["Name", me.displayName],
-            ["Email", me.email ?? "—"],
-            ["Units", me.unitSystem === "metric" ? "Metric (g, ml, L)" : "US (oz, fl oz, gal)"],
-            ["Temperature", me.tempUnit === "C" ? "Celsius" : "Fahrenheit"],
-            ["Time zone", me.timezone],
-          ]}
-        />
+        <Rows rows={[["Email", me.email ?? "—"]]} />
+        <div className="mt-4">
+          <ProfileForm profile={me} zones={timeZones()} />
+        </div>
       </Section>
 
       <Section title="Measurements">
@@ -101,4 +97,10 @@ function Rows({ rows }: { rows: [string, string][] }) {
       ))}
     </dl>
   );
+}
+
+/** Every IANA zone the runtime knows, plus UTC. */
+function timeZones(): string[] {
+  const zones = typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : [];
+  return zones.includes("UTC") ? zones : ["UTC", ...zones];
 }

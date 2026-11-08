@@ -30,10 +30,12 @@ Jarlore is a mobile-first fermentation notebook: track batches, split F1 into F2
 - No business rules in the frontend: diffs, versioning, entitlements and validation belong to jarlore-be. The UI renders `DiffRow`s and decides only where the marker goes (`features/compare/marking.ts`).
 - Layers: `components/ui` (no API imports) → `components/app` → `features/*` → `app/**`. Don't create an abstraction with one consumer.
 - There is no mock data. Screens read jarlore-be through `api` (`src/lib/api/http-api.ts`); a failure shows an error state, never invented data.
-- The access token lives in the httpOnly `jarlore_session` cookie and is read only on the server (`src/lib/auth/session.ts`).
-- Don't add dependencies without a concrete need (currently lucide-react and server-only; openapi-typescript as a dev tool).
+- The access token lives in the httpOnly `jarlore_session` cookie and is read only on the server (`src/lib/auth/session.ts`). `src/proxy.ts` mints and refreshes it from the Neon Auth session; never fetch tokens in Server Components or expose them to client code.
+- Dates and times: always pass the user's zone (`api.timezone()`) to the formatters in `src/lib/format.ts`. Never hard-code a zone or call `Intl` time-zone APIs during server render.
+- API errors in `.catch()`: use `onApiError(fallback)`, never `.catch(() => null)` (it would swallow redirects and outages).
+- Don't add dependencies without a concrete need (currently lucide-react, server-only and @neon/auth; openapi-typescript and @playwright/test as dev tools).
 
 ## Before you say a UI change is done
-1. `pnpm lint`, `npx tsc --noEmit`, `pnpm build`.
+1. `pnpm lint`, `pnpm typecheck`, `pnpm test:unit`, `pnpm build`; `pnpm e2e` for flows (see `e2e/README.md`).
 2. Screenshot at 390, 768 and 1440 px with long names, 4+ bottles, empty and missing data, and look at them.
 3. Keyboard pass: tab order, visible focus, Esc closes sheets.

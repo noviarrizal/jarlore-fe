@@ -19,10 +19,11 @@ export default function BatchesPage() {
 }
 
 async function Batches() {
-  const [page, types, now, entitlements] = await Promise.all([
+  const [page, types, now, tz, entitlements] = await Promise.all([
     api.listBatches({ sort: "started_desc" }),
     api.listFermentationTypes(),
     api.now(),
+    api.timezone(),
     api.getEntitlements(),
   ]);
   const f2 = await Promise.all(page.data.filter((b) => b.stage === "f2").map((b) => api.getBatch(b.id)));
@@ -34,6 +35,7 @@ async function Batches() {
       bottles={bottles}
       types={types}
       now={now}
+      tz={tz}
       compareLimit={entitlements.limits.compareItems}
     />
   );

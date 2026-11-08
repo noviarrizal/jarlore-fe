@@ -28,12 +28,14 @@ export function BatchesBrowser({
   bottles,
   types,
   now,
+  tz,
   compareLimit,
 }: {
   batches: BatchSummary[];
   bottles: Record<string, Bottle[]>;
   types: FermentationType[];
   now: string;
+  tz: string;
   compareLimit: number;
 }) {
   const router = useRouter();
@@ -94,7 +96,7 @@ export function BatchesBrowser({
             { value: "all", label: "All", count: counts.all },
           ]}
         />
-        <div className="grid grid-cols-2 gap-2 md:flex md:items-center">
+        <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:items-center">
           <div className="relative col-span-2 md:w-72">
             <Search aria-hidden className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-3" />
             <Input
@@ -160,7 +162,7 @@ export function BatchesBrowser({
               const isSelected = selected.includes(b.id);
               return (
                 <li key={b.id} className={cx("relative", selecting && isSelected && "bg-bottle-wash/60")}>
-                  <BatchRow batch={b} now={now} types={types} bottles={bottles[b.id]} showLog={!selecting} />
+                  <BatchRow batch={b} now={now} tz={tz} types={types} bottles={bottles[b.id]} showLog={!selecting} />
                   {selecting && (
                     <label className="absolute inset-0 z-20 flex cursor-pointer items-start justify-end p-4">
                       <input

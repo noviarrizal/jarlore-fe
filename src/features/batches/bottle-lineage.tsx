@@ -20,12 +20,14 @@ export function BottleLineage({
   rows,
   logs,
   now,
+  tz,
   actions,
 }: {
   batch: Batch;
   rows: DiffRow[];
   logs: LogEntry[];
   now: string;
+  tz: string;
   /** Per-bottle actions (rate, mark best, save as recipe), shown under each bottle. */
   actions?: (bottle: Bottle) => ReactNode;
 }) {
@@ -47,7 +49,7 @@ export function BottleLineage({
           <p className="text-small text-ink-2">
             {formatVolume(batch.volumeMl)}
             {batch.vessel ? ` in a ${batch.vessel}` : ""}
-            {bottledAt ? `, bottled ${formatDate(bottledAt)} into ${batch.bottles.length}` : ""}
+            {bottledAt ? `, bottled ${formatDate(bottledAt, tz)} into ${batch.bottles.length}` : ""}
           </p>
         </div>
       }
@@ -62,7 +64,7 @@ export function BottleLineage({
               <span className="code text-small">{b.label}</span>
             </span>
           }
-          aside={<BottleStatus bottle={b} logs={logs} now={now} />}
+          aside={<BottleStatus bottle={b} logs={logs} now={now} tz={tz} />}
         >
           <p className="font-semibold break-words">
             <Changed when={isChanged("additions.flavorName", i)}>{b.flavorName}</Changed>
@@ -107,7 +109,7 @@ export function BottleLineage({
   );
 }
 
-function BottleStatus({ bottle, logs, now }: { bottle: Bottle; logs: LogEntry[]; now: string }) {
+function BottleStatus({ bottle, logs, now, tz }: { bottle: Bottle; logs: LogEntry[]; now: string; tz: string }) {
   if (bottle.rating) return <Score value={bottle.rating.overall} />;
   const lastBurp = logs.find((l) => l.bottleId === bottle.id && l.kind === "burp");
   return (
@@ -118,7 +120,7 @@ function BottleStatus({ bottle, logs, now }: { bottle: Bottle; logs: LogEntry[];
         <Tag className="bg-bottle-wash text-action">F2 day {dayNumber(bottle.startedAt, now)}</Tag>
       )}
       <span className="text-small text-ink-2">
-        {lastBurp ? `Burped ${relativeDay(lastBurp.occurredAt, now).toLowerCase()}` : "Not burped yet"}
+        {lastBurp ? `Burped ${relativeDay(lastBurp.occurredAt, now, tz).toLowerCase()}` : "Not burped yet"}
       </span>
     </div>
   );

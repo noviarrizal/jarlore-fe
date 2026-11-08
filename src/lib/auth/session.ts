@@ -1,17 +1,18 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { DEV_SESSION_COOKIE, SESSION_COOKIE, TIMEZONE_COOKIE, cleanTimezone, devAuthUrlFrom, sessionCookieOptions } from "./cookies";
 
 /**
- * The access token lives in an httpOnly cookie and is only read on the server,
- * which forwards it to jarlore-be as a Bearer token. The browser never sees it in JS.
+ * The access token jarlore-be accepts lives in the httpOnly `jarlore_session`
+ * cookie and is only read on the server, which forwards it as a Bearer token.
  *
- * Today the token comes from the local development issuer (jarlore-be `cmd/devauth`).
- * Production sign-in with Neon Auth (@neon/auth) plugs in here: return the Neon
- * Auth JWT for the current session instead of the cookie value, and nothing else
- * changes. See docs/architecture/FRONTEND_ARCHITECTURE.md, "Authentication".
+ * In production it is a Neon Auth JWT: src/proxy.ts mints it from the Neon Auth
+ * session and refreshes it before it expires (15-minute tokens). In development it
+ * can instead come from jarlore-be's local issuer (cmd/devauth). See
+ * docs/architecture/FRONTEND_ARCHITECTURE.md, "Authentication".
  */
-export const SESSION_COOKIE = "jarlore_session";
+export { SESSION_COOKIE };
 
 export async function getAccessToken(): Promise<string> {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
@@ -19,21 +20,33 @@ export async function getAccessToken(): Promise<string> {
   return token;
 }
 
-export async function setSession(token: string, maxAgeSeconds: number) {
-  (await cookies()).set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: maxAgeSeconds,
-  });
+/** The browser time zone recorded at sign-in, for jarlore-be's first profile. */
+export async function getTimezoneHint(): Promise<string | null> {
+  return cleanTimezone((await cookies()).get(TIMEZONE_COOKIE)?.value);
+}
+
+export async function rememberTimezone(tz: string | null) {
+  const clean = cleanTimezone(tz);
+  if (clean) (await cookies()).set(TIMEZONE_COOKIE, clean, sessionCookieOptions(60 * 60 * 24 * 365));
+}
+
+export async function setDevSession(token: string, maxAgeSeconds: number) {
+  const store = await cookies();
+  store.set(SESSION_COOKIE, token, sessionCookieOptions(maxAgeSeconds));
+  store.set(DEV_SESSION_COOKIE, "1", sessionCookieOptions(maxAgeSeconds));
 }
 
 export async function clearSession() {
-  (await cookies()).delete(SESSION_COOKIE);
+  const store = await cookies();
+  store.delete(SESSION_COOKIE);
+  store.delete(DEV_SESSION_COOKIE);
 }
 
-/** The development issuer, when configured. Never set in production. */
+/**
+ * The development issuer, when configured. It is refused in production builds and
+ * unless it is on this machine (loopback), so a misconfigured deployment cannot
+ * accept tokens anyone can mint.
+ */
 export function devAuthUrl(): string | null {
-  return process.env.NODE_ENV === "production" ? null : (process.env.JARLORE_DEV_AUTH_URL ?? null);
+  return devAuthUrlFrom(process.env.NODE_ENV, process.env.JARLORE_DEV_AUTH_URL);
 }

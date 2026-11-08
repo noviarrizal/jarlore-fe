@@ -7,9 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "gen:api": "openapi-typescript ../jarlore-be/api/openapi.yaml -o src/lib/api/schema.d.ts"
+    "gen:api": "openapi-typescript ../jarlore-be/api/openapi.yaml -o src/lib/api/schema.d.ts",
+    "typecheck": "tsc --noEmit",
+    "test:unit": "node --test \"src/**/*.test.ts\"",
+    "check:api-types": "openapi-typescript ../jarlore-be/api/openapi.yaml -o .tmp-schema.d.ts && node -e \"const fs=require('fs');const a=fs.readFileSync('.tmp-schema.d.ts','utf8'),b=fs.readFileSync('src/lib/api/schema.d.ts','utf8');fs.rmSync('.tmp-schema.d.ts');if(a!==b){console.error('src/lib/api/schema.d.ts is out of date: run pnpm gen:api');process.exit(1)}console.log('API types up to date')\"",
+    "e2e": "playwright test"
   },
   "dependencies": {
+    "@neon/auth": "0.8.2",
     "lucide-react": "^1.68.0",
     "next": "16.4.5",
     "react": "19.3.0",
@@ -17,6 +22,7 @@
     "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "1.65.0",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

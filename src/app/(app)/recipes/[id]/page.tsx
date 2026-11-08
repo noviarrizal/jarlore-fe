@@ -11,7 +11,7 @@ import { Score } from "@/components/ui/rating";
 import { StageTag } from "@/components/ui/stage-tag";
 import { SkeletonRows } from "@/components/ui/states";
 import { DiffTable } from "@/features/compare/diff-table";
-import { api, isNotFound } from "@/lib/api";
+import { api, isNotFound, onApiError } from "@/lib/api";
 import type { DiffRow } from "@/lib/api/types";
 import { formatAmount, formatDate, formatDateYear, typeName } from "@/lib/format";
 
@@ -33,7 +33,7 @@ async function RecipeDetail({ params }: { params: PageProps<"/recipes/[id]">["pa
     if (isNotFound(e)) notFound();
     throw e;
   });
-  const [versions, batches] = await Promise.all([api.listRecipeVersions(id), api.listRecipeBatches(id)]);
+  const [versions, batches, tz] = await Promise.all([api.listRecipeVersions(id), api.listRecipeBatches(id), api.timezone()]);
   const chronological = [...versions].sort((a, b) => a.versionNo - b.versionNo);
   // Each version's changes vs its parent come from the server diff.
   const steps = await Promise.all(
@@ -42,7 +42,7 @@ async function RecipeDetail({ params }: { params: PageProps<"/recipes/[id]">["pa
   const first = chronological[0];
   const latest = recipe.latestVersion;
   // Comparing non-neighbouring versions is a Pro feature; on the free plan the table is simply left out.
-  const span = chronological.length > 2 ? await api.diffRecipeVersions(id, first.versionNo, latest.versionNo).catch(() => null) : null;
+  const span = chronological.length > 2 ? await api.diffRecipeVersions(id, first.versionNo, latest.versionNo).catch(onApiError(null)) : null;
   const bottle = recipe.scope === "bottle" ? latest.bottle : null;
   const finishedFromLatest = batches.data.find((b) => b.recipeVersion?.versionId === latest.id && b.status === "finished");
   const brewHref = finishedFromLatest ? `/batches/${finishedFromLatest.id}/brew-again` : `/batches/new?recipeVersion=${latest.id}`;
@@ -52,7 +52,7 @@ async function RecipeDetail({ params }: { params: PageProps<"/recipes/[id]">["pa
       <PageHeader
         back={{ href: "/recipes", label: "Recipes" }}
         title={recipe.name}
-        meta={`${typeName[recipe.fermentationTypeId]}, ${recipe.versionCount} ${recipe.versionCount === 1 ? "version" : "versions"} since ${formatDateYear(recipe.createdAt)}`}
+        meta={`${typeName[recipe.fermentationTypeId]}, ${recipe.versionCount} ${recipe.versionCount === 1 ? "version" : "versions"} since ${formatDateYear(recipe.createdAt, tz)}`}
         actions={
           recipe.scope === "batch" ? (
             <ButtonLink href={brewHref} variant="primary" icon={<RotateCcw className="size-4" aria-hidden />}>
@@ -127,7 +127,7 @@ async function RecipeDetail({ params }: { params: PageProps<"/recipes/[id]">["pa
           tone="ink"
           root={
             <p className="text-small text-ink-2">
-              {first.sourceBottleId ? "Saved from a bottle" : first.sourceBatchId ? "Saved from a batch" : "Written from scratch"}, {formatDate(first.createdAt)}
+              {first.sourceBottleId ? "Saved from a bottle" : first.sourceBatchId ? "Saved from a batch" : "Written from scratch"}, {formatDate(first.createdAt, tz)}
             </p>
           }
         >
@@ -147,7 +147,7 @@ async function RecipeDetail({ params }: { params: PageProps<"/recipes/[id]">["pa
                   </div>
                 }
               >
-                <p className="text-small text-ink-2">{formatDate(v.createdAt)}</p>
+                <p className="text-small text-ink-2">{formatDate(v.createdAt, tz)}</p>
                 {v.changeNote && <p className="note text-body text-ink">{v.changeNote}</p>}
                 {step && <ChangeList rows={step.rows} />}
               </Branch>
@@ -182,7 +182,7 @@ async function RecipeDetail({ params }: { params: PageProps<"/recipes/[id]">["pa
                 </Link>
                 {b.recipeVersion?.recipeId === recipe.id && <span className="code text-small text-ink-2">v{b.recipeVersion.versionNo}</span>}
                 <StageTag stage={b.status === "active" ? b.stage : "done"} status={b.status} />
-                <span className="text-small text-ink-2">{formatDate(b.startedAt)}</span>
+                <span className="text-small text-ink-2">{formatDate(b.startedAt, tz)}</span>
                 <span className="ml-auto">{b.rating ? <Score value={b.rating.overall} /> : null}</span>
               </li>
             ))}

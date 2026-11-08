@@ -6,14 +6,14 @@ import { formatMeasurement, formatTime, logKindName, relativeDay } from "@/lib/f
  * Batch history, newest first, grouped by day. Measured values in the mono voice,
  * the brewer's own words in the casual voice. A bottle-specific entry carries its label.
  */
-export function Timeline({ logs, bottles = [], now }: { logs: LogEntry[]; bottles?: Bottle[]; now: string }) {
+export function Timeline({ logs, bottles = [], now, tz }: { logs: LogEntry[]; bottles?: Bottle[]; now: string; tz: string }) {
   if (logs.length === 0) {
     return <p className="text-body text-ink-2">Nothing logged yet. Your first taste or pH reading will show up here.</p>;
   }
 
   const groups: { day: string; entries: LogEntry[] }[] = [];
   for (const l of logs) {
-    const day = relativeDay(l.occurredAt, now);
+    const day = relativeDay(l.occurredAt, now, tz);
     const g = groups.at(-1);
     if (g && g.day === day) g.entries.push(l);
     else groups.push({ day, entries: [l] });
@@ -37,7 +37,7 @@ export function Timeline({ logs, bottles = [], now }: { logs: LogEntry[]; bottle
                     )}
                   />
                   <div className="flex flex-wrap items-baseline gap-x-2 text-small text-ink-2">
-                    <span className="num">{formatTime(l.occurredAt)}</span>
+                    <span className="num">{formatTime(l.occurredAt, tz)}</span>
                     <span className="font-semibold text-ink">{logKindName[l.kind]}</span>
                     {bottle && (
                       <span>

@@ -15,12 +15,14 @@ import { LogButton } from "./quick-log-sheet";
 export function BatchRow({
   batch,
   now,
+  tz,
   types,
   bottles,
   showLog = true,
 }: {
   batch: BatchSummary;
   now: string;
+  tz: string;
   types: FermentationType[];
   bottles?: Bottle[];
   showLog?: boolean;
@@ -56,7 +58,7 @@ export function BatchRow({
               {batch.recipeVersion.recipeName === batch.name ? "Recipe" : batch.recipeVersion.recipeName} v{batch.recipeVersion.versionNo}
             </span>
           )}
-          {!active && batch.finishedAt && <span>Finished {formatDate(batch.finishedAt)}</span>}
+          {!active && batch.finishedAt && <span>Finished {formatDate(batch.finishedAt, tz)}</span>}
           {batch.rating && <Score value={batch.rating.overall} />}
           {batch.isReference && <span className="font-semibold text-tea-ink">Reference batch</span>}
         </div>
@@ -77,7 +79,7 @@ export function BatchRow({
           <p className="mt-2 text-small text-ink-2">
             {batch.lastLog ? (
               <>
-                <span className="text-ink-3">{relativeDay(batch.lastLog.occurredAt, now)}: </span>
+                <span className="text-ink-3">{relativeDay(batch.lastLog.occurredAt, now, tz)}: </span>
                 {batch.lastLog.note ? <span className="note text-ink">{batch.lastLog.note}</span> : <span>{batch.lastLog.kind === "burp" ? "Burped" : "Measured"}</span>}
               </>
             ) : (

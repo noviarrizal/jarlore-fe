@@ -9,5 +9,5 @@ import { httpApi } from "./http-api";
  */
 export const api: JarloreApi = httpApi;
 
-export { ApiError, ApiUnavailableError, isNotFound } from "./http";
+export { ApiError, ApiUnavailableError, isNotFound, onApiError } from "./http";
 export type * from "./types";

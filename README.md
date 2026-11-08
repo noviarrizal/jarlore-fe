@@ -10,21 +10,32 @@ Every screen reads and writes the Go API in `../jarlore-be` (Neon PostgreSQL in 
 
 ```bash
 pnpm install
-cp .env.example .env.local   # JARLORE_API_URL, and JARLORE_DEV_AUTH_URL for development sign-in
+cp .env.example .env.local   # JARLORE_API_URL; NEON_AUTH_* (dev branch) and/or JARLORE_DEV_AUTH_URL
 pnpm dev                     # http://localhost:3000 → /login → /today
-pnpm lint
-npx tsc --noEmit
-pnpm build
-pnpm gen:api                 # regenerate src/lib/api/schema.d.ts after the OpenAPI spec changes
 ```
 
-Start jarlore-be first (its README: database, `go run ./cmd/devauth`, `go run ./cmd/api`).
+Start jarlore-be first (its README: database, `go run ./cmd/devauth`, `go run ./cmd/api`). Sign in with an emailed code (Neon Auth, use the `dev` branch's Auth URL locally) or, in development only, with the local test issuer.
+
+Checks (all run in CI, `.github/workflows/ci.yml`):
+
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test:unit               # Node's test runner: time zones, session helpers
+pnpm check:api-types         # generated types match ../jarlore-be/api/openapi.yaml (pnpm gen:api to update)
+pnpm build
+pnpm e2e                     # Playwright against a disposable database, see e2e/README.md
+```
+
+Deployment: Cloud Run, next to the API (`docs/deployment/FRONTEND_HOSTING.md`). Nothing is deployed yet.
 
 ## Docs
 
 - `docs/design/DESIGN_FOUNDATIONS.md`: visual direction, tokens, type, colour meaning
 - `docs/design/COMPONENT_SYSTEM.md`: components, states, accessibility
 - `docs/design/SCREEN_GUIDELINES.md`: screens, layout, flows, review checklist
-- `docs/architecture/FRONTEND_ARCHITECTURE.md`: structure, data flow, API integration, contract gaps
+- `docs/architecture/FRONTEND_ARCHITECTURE.md`: structure, data flow, API integration, authentication, time zones, errors, security headers
+- `docs/deployment/FRONTEND_HOSTING.md`: hosting choice and deploy steps
+- `e2e/README.md`: end-to-end tests
 - `CLAUDE.md`: conventions every change must follow
 - API contract: `../jarlore-be/api/openapi.yaml`

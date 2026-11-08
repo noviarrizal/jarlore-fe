@@ -1,0 +1,152 @@
+# Quality gates for jarlore-fe. The API contract and the end-to-end stack come from
+# the public jarlore-be repository (main, or the branch named in BACKEND_REF).
+# CI never touches Neon or Neon Auth: E2E runs against a throwaway PostgreSQL 18
+# service and jarlore-be's local test issuer. No secrets are needed.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, "feat/**", "fix/**"]
+  workflow_dispatch:
+    inputs:
+      backend_ref:
+        description: jarlore-be branch, tag or SHA to test against
+        default: main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BACKEND_REPO: noviarrizal/jarlore-be
+  BACKEND_REF: ${{ inputs.backend_ref || 'main' }}
+
+defaults:
+  run:
+    working-directory: jarlore-fe
+
+jobs:
+  checks:
+    name: Lint, types, unit tests, API types, build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: jarlore-fe
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.BACKEND_REPO }}
+          ref: ${{ env.BACKEND_REF }}
+          path: jarlore-be
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: jarlore-fe/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: jarlore-fe/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test:unit
+      - name: Generated API types match jarlore-be's OpenAPI spec
+        run: pnpm check:api-types
+      - run: pnpm build
+
+  e2e:
+    name: End-to-end (Playwright, PostgreSQL 18 + Go API + app)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: jarlore-fe
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.BACKEND_REPO }}
+          ref: ${{ env.BACKEND_REF }}
+          path: jarlore-be
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: jarlore-be/go.mod
+          cache-dependency-path: jarlore-be/go.sum
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: jarlore-fe/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: jarlore-fe/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+
+      - name: Disposable database, migrated like production (owner role + restricted API role)
+        working-directory: jarlore-be
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f scripts/local-db.sql
+          DIRECT_DATABASE_URL='postgres://jarlore_owner:jarlore_owner_local@localhost:5432/jarlore?sslmode=disable' go run ./cmd/migrate up
+          psql -h localhost -U postgres -d jarlore -v ON_ERROR_STOP=1 -c 'GRANT jarlore_app TO jarlore_api'
+      - name: Pre-build the Go binaries (keeps Playwright's server start-up fast)
+        working-directory: jarlore-be
+        run: go build ./cmd/api ./cmd/devauth
+
+      - name: Playwright
+        env:
+          E2E_DATABASE_URL: postgres://jarlore_api:jarlore_api_local@localhost:5432/jarlore?sslmode=disable
+          JARLORE_BE_DIR: ../jarlore-be
+        run: pnpm e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            jarlore-fe/playwright-report
+            jarlore-fe/test-results
+          retention-days: 7
+
+  container:
+    name: Container image builds and serves with security headers
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: jarlore-fe
+      - run: docker build -t jarlore-web:ci .
+      - name: Runs as non-root and holds no secrets
+        run: |
+          test "$(docker inspect --format '{{.Config.User}}' jarlore-web:ci)" = "nonroot:nonroot"
+          id=$(docker create jarlore-web:ci)
+          docker export "$id" | tar -t > /tmp/files.txt
+          docker rm "$id" >/dev/null
+          if grep -E '(^|/)\.env($|\.)|\.pem$' /tmp/files.txt | grep -v node_modules; then echo "unexpected files in the image"; exit 1; fi
+      - name: Serves /login with the production headers
+        run: |
+          docker run -d --name web -p 18090:8080 -e JARLORE_API_URL=http://127.0.0.1:1 jarlore-web:ci
+          for i in $(seq 1 30); do curl -fsS -o /dev/null http://localhost:18090/login && break; sleep 1; done
+          curl -fsS -D /tmp/h.txt -o /dev/null http://localhost:18090/login
+          cat /tmp/h.txt
+          grep -qi '^content-security-policy: .*frame-ancestors' /tmp/h.txt
+          grep -qi '^strict-transport-security:' /tmp/h.txt
+          grep -qi '^x-content-type-options: nosniff' /tmp/h.txt
+          ! grep -qi '^x-powered-by:' /tmp/h.txt
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:18090/today)" = "307"
+          docker stop --time 10 web

@@ -1,7 +1,8 @@
 import "server-only";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
-import { getAccessToken } from "@/lib/auth/session";
+import { cache } from "react";
+import { getAccessToken, getTimezoneHint } from "@/lib/auth/session";
 import type { JarloreApi } from "./contract";
 import { ApiError, request } from "./http";
 import type {
@@ -26,16 +27,23 @@ import type {
 
 type Init = { method?: string; json?: unknown; idempotencyKey?: string };
 
-/** Calls jarlore-be with the signed-in user's token. An expired session goes back to sign-in. */
+/**
+ * Calls jarlore-be with the signed-in user's token. An expired session goes back
+ * to sign-in. The browser's time zone (recorded at sign-in) rides along so a new
+ * profile starts in the user's zone.
+ */
 async function call<T>(path: string, init: Init = {}): Promise<T> {
-  const token = await getAccessToken();
+  const [token, tz] = await Promise.all([getAccessToken(), getTimezoneHint()]);
   try {
-    return await request<T>(path, { ...init, token });
+    return await request<T>(path, { ...init, token, headers: tz ? { "Jarlore-Timezone": tz } : undefined });
   } catch (e) {
     if (e instanceof ApiError && e.status === 401) redirect("/login?expired=1");
     throw e;
   }
 }
+
+/** GET /v1/me once per request: several components need the profile (time zone). */
+const me = cache(() => call<Me>("/v1/me"));
 
 const qs = (params: Record<string, string | number | boolean | undefined>) => {
   const s = new URLSearchParams();
@@ -50,16 +58,19 @@ export const httpApi: JarloreApi = {
     return new Date().toISOString();
   },
   async getMe() {
-    const [me, ent] = await Promise.all([call<Me>("/v1/me"), call<Entitlements>("/v1/entitlements")]);
+    const [profile, ent] = await Promise.all([me(), call<Entitlements>("/v1/entitlements")]);
     return {
-      displayName: me.displayName ?? me.email?.split("@")[0] ?? "You",
-      email: me.email ?? null,
-      unitSystem: me.unitSystem,
-      tempUnit: me.tempUnit,
-      timezone: me.timezone,
+      displayName: profile.displayName ?? profile.email?.split("@")[0] ?? "You",
+      savedName: profile.displayName ?? null,
+      email: profile.email ?? null,
+      unitSystem: profile.unitSystem,
+      tempUnit: profile.tempUnit,
+      timezone: profile.timezone,
       plan: ent.plan,
     };
   },
+  timezone: async () => (await me()).timezone,
+  updateMe: (patch) => call<Me>("/v1/me", { method: "PATCH", json: patch }),
   getEntitlements: () => call<Entitlements>("/v1/entitlements"),
   listFermentationTypes: async () => (await call<{ data: FermentationType[] }>("/v1/fermentation-types")).data,
   listMeasurementDefinitions: async () => (await call<{ data: MeasurementDefinition[] }>("/v1/measurement-definitions")).data,

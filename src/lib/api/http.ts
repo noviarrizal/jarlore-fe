@@ -1,4 +1,5 @@
 import "server-only";
+import { unstable_rethrow } from "next/navigation";
 import type { Problem } from "./types";
 
 /** Every non-2xx response from jarlore-be is RFC 9457 problem+json. */
@@ -18,6 +19,20 @@ export class ApiError extends Error {
 }
 
 export const isNotFound = (e: unknown) => e instanceof ApiError && e.status === 404;
+
+/**
+ * For `.catch()` where an API refusal (402 on the free plan, 404 …) is an expected
+ * outcome: returns `fallback` for an ApiError and rethrows everything else, so a
+ * redirect (expired session) still navigates and an unreachable API reaches the
+ * route's error boundary instead of being shown as an empty result.
+ */
+export function onApiError<T>(fallback: T) {
+  return (e: unknown): T => {
+    unstable_rethrow(e);
+    if (e instanceof ApiError) return fallback;
+    throw e;
+  };
+}
 
 /** Raised when the backend can't be reached at all (down, waking up, misconfigured). */
 export class ApiUnavailableError extends Error {
